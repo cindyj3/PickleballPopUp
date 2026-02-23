@@ -1,0 +1,47 @@
+CREATE TABLE sqlite_sequence(name,seq);
+CREATE TABLE Users (
+    UID INTEGER PRIMARY KEY AUTOINCREMENT,
+    Username VARCHAR(50) UNIQUE NOT NULL,
+    Email VARCHAR(255),
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE Games (
+    GID INTEGER PRIMARY KEY AUTOINCREMENT,
+    GameTime DATETIME NOT NULL,
+    Location VARCHAR(255),
+    Status VARCHAR(20) CHECK (Status IN ('scheduled', 'completed')) NOT NULL
+);
+CREATE TABLE GamePlayers (
+    GID INTEGER,
+    UID INTEGER,
+    Team INTEGER,      -- 1 or 2
+    Score INTEGER,     -- final score for that player/team
+    IsWinner BOOLEAN, -- 1 = won, 0 = lost
+ 
+    PRIMARY KEY (GID, UID),
+    FOREIGN KEY (GID) REFERENCES Games(GID),
+    FOREIGN KEY (UID) REFERENCES Users(UID)
+);
+CREATE TABLE Conversations (
+    CID INTEGER PRIMARY KEY AUTOINCREMENT,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE ConversationParticipants (
+    CID INTEGER,
+    UID INTEGER,
+ 
+    PRIMARY KEY (CID, UID),
+    FOREIGN KEY (CID) REFERENCES Conversations(CID),
+    FOREIGN KEY (UID) REFERENCES Users(UID)
+);
+CREATE TABLE Messages (
+    MessageID INTEGER PRIMARY KEY AUTOINCREMENT,
+    CID INTEGER NOT NULL,
+    SenderUID INTEGER NOT NULL,
+    Content TEXT NOT NULL,
+    SentAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+ 
+    FOREIGN KEY (CID) REFERENCES Conversations(CID),
+    FOREIGN KEY (SenderUID) REFERENCES Users(UID)
+);
+ 
