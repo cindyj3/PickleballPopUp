@@ -7,7 +7,7 @@ const router = express.Router();
 router.get("/", (req, res) => {
   try {
     const games = db
-      .prepare("SELECT * FROM Games ORDER BY CreatedAt DESC")
+      .prepare("SELECT * FROM Games ORDER BY GameID DESC")
       .all();
 
     res.json(games);
@@ -26,13 +26,11 @@ router.post("/", (req, res) => {
 
   try {
     const info = db
-      .prepare(
-        "INSERT INTO Games (Location, Time, CreatedBy) VALUES (?, ?, ?)"
-      )
+      .prepare("INSERT INTO Games (Location, Time, CreatedBy) VALUES (?, ?, ?)")
       .run(location, time, username);
 
     const game = db
-      .prepare("SELECT * FROM Games WHERE GameID=?")
+      .prepare("SELECT * FROM Games WHERE GameID = ?")
       .get(info.lastInsertRowid);
 
     res.status(201).json(game);
