@@ -12,7 +12,7 @@ if (!fs.existsSync(dbDir)) {
 
 const db = new Database(dbPath);
 
-const schemaPath = path.join(process.cwd(), "backend/db/schema.sql");
+const schemaPath = path.join(process.cwd(), "db/schema.sql");
 
 console.log("Schema path:", schemaPath);
 console.log("Schema exists:", fs.existsSync(schemaPath));
