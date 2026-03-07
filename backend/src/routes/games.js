@@ -7,7 +7,7 @@ const router = express.Router();
 router.get("/", (req, res) => {
   try {
     const games = db
-      .prepare("SELECT * FROM Games")
+      .prepare("SELECT * FROM Games ORDER BY GID DESC")
       .all();
 
     res.json(games);
@@ -18,19 +18,21 @@ router.get("/", (req, res) => {
 
 /* CREATE game */
 router.post("/", (req, res) => {
-  const { location, time, username } = req.body;
+  const { location, time } = req.body;
 
-  if (!location || !time || !username) {
-    return res.status(400).json({ error: "location, time, username required" });
+  if (!location || !time) {
+    return res.status(400).json({ error: "location and time required" });
   }
 
   try {
     const info = db
-      .prepare("INSERT INTO Games (Location, Time, CreatedBy) VALUES (?, ?, ?)")
-      .run(location, time, username);
+      .prepare(
+        "INSERT INTO Games (Location, GameTime, Status) VALUES (?, ?, ?)"
+      )
+      .run(location, time, "open");
 
     const game = db
-      .prepare("SELECT * FROM Games WHERE rowid = ?")
+      .prepare("SELECT * FROM Games WHERE GID = ?")
       .get(info.lastInsertRowid);
 
     res.status(201).json(game);
