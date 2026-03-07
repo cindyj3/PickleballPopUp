@@ -3,7 +3,6 @@
 # ======================
 node_modules/
 npm-debug.log
-package-lock.json
 
 # ======================
 # SQLite Databases
@@ -22,3 +21,12 @@ package-lock.json
 # Environment files
 # ======================
 .env
+
+# ======================
+# Build folders (React / Vite)
+# ======================
+dist/
+build/
+
+
+.vscode/
