@@ -75,9 +75,16 @@ async function loadGames() {
   list.innerHTML = ""
 
   games.forEach(game => {
-  const li = document.createElement("li");
-  li.textContent = `${game.Location} - ${game.GameTime}`;
-  list.appendChild(li);
+
+const li = document.createElement("li");
+
+li.innerHTML = `
+  ${game.Location} - ${game.GameTime}
+  <button onclick="joinGame(${game.GID})">Join</button>
+`;
+
+list.appendChild(li);
+
 });
 }
 async function createGame() {
@@ -101,6 +108,25 @@ document.getElementById("location").value = ""
 document.getElementById("time").value = ""
 
 loadGames()
+}
+
+async function joinGame(gameId) {
+
+const username = prompt("Enter your name")
+
+if (!username) return
+
+const res = await fetch(API + "/games/" + gameId + "/join", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ username })
+})
+
+const data = await res.json()
+console.log(data)
+
+loadGames()
+
 }
 
 loadGames()
