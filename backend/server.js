@@ -27,5 +27,10 @@ app.get("/test-db", (req, res) => {
   }
 });
 
+app.get("/debug-games-schema", (req, res) => {
+    const schema = db.prepare("PRAGMA table_info(Games)").all();
+    res.json(schema);
+  });
+  
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
