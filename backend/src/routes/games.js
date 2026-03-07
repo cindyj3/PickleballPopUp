@@ -5,18 +5,19 @@ const router = express.Router();
 
 /* GET all games */
 router.get("/", (req, res) => {
+  try {
+    const games = db
+      .prepare("SELECT * FROM Games ORDER BY CreatedAt DESC")
+      .all();
 
-  const games = db
-    .prepare("SELECT * FROM Games ORDER BY CreatedAt DESC")
-    .all();
-
-  res.json(games);
-
+    res.json(games);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /* CREATE game */
 router.post("/", (req, res) => {
-
   const { location, time, username } = req.body;
 
   if (!location || !time || !username) {
@@ -24,7 +25,6 @@ router.post("/", (req, res) => {
   }
 
   try {
-
     const info = db
       .prepare(
         "INSERT INTO Games (Location, Time, CreatedBy) VALUES (?, ?, ?)"
@@ -32,17 +32,13 @@ router.post("/", (req, res) => {
       .run(location, time, username);
 
     const game = db
-      .prepare("SELECT * FROM Games WHERE GameID = ?")
+      .prepare("SELECT * FROM Games WHERE GameID=?")
       .get(info.lastInsertRowid);
 
     res.status(201).json(game);
-
-  } catch (e) {
-
-    res.status(400).json({ error: e.message });
-
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
 });
 
 module.exports = router;
