@@ -7,7 +7,7 @@ const router = express.Router();
 router.get("/", (req, res) => {
   try {
     const games = db
-      .prepare("SELECT * FROM Games ORDER BY GameID DESC")
+      .prepare("SELECT * FROM Games")
       .all();
 
     res.json(games);
@@ -30,7 +30,7 @@ router.post("/", (req, res) => {
       .run(location, time, username);
 
     const game = db
-      .prepare("SELECT * FROM Games WHERE GameID = ?")
+      .prepare("SELECT * FROM Games WHERE rowid = ?")
       .get(info.lastInsertRowid);
 
     res.status(201).json(game);
