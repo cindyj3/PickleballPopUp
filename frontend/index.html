@@ -85,16 +85,22 @@ async function loadGames() {
 
 async function createGame() {
 
-  const location = document.getElementById("location").value
-  const time = document.getElementById("time").value
+const location = document.getElementById("location").value
+const time = document.getElementById("time").value
 
-  await fetch(API + "/games", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ location, time })
-  })
+const res = await fetch(API + "/games", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+  location,
+  time,
+  username: "Cindy"
+})})
 
-  loadGames()
+const data = await res.json()
+console.log(data)
+
+loadGames()
 }
 
 loadGames()
