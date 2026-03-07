@@ -29,7 +29,7 @@ router.post("/", (req, res) => {
       .prepare(
         "INSERT INTO Games (Location, GameTime, Status) VALUES (?, ?, ?)"
       )
-      .run(location, time, "open");
+      .run(location, time, "scheduled");
 
     const game = db
       .prepare("SELECT * FROM Games WHERE GID = ?")
