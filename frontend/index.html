@@ -80,7 +80,6 @@ async function loadGames() {
   list.appendChild(li);
 });
 }
-
 async function createGame() {
 
 const location = document.getElementById("location").value
@@ -98,10 +97,14 @@ const res = await fetch(API + "/games", {
 const data = await res.json()
 console.log(data)
 
+document.getElementById("location").value = ""
+document.getElementById("time").value = ""
+
 loadGames()
 }
 
 loadGames()
+setInterval(loadGames, 3000) // Refresh games every 3 seconds
 
 </script>
 

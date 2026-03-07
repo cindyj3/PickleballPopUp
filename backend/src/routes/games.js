@@ -41,4 +41,24 @@ router.post("/", (req, res) => {
   }
 });
 
+/* JOIN game */
+router.post("/:id/join", (req, res) => {
+  const gameId = req.params.id;
+  const { username } = req.body;
+
+  if (!username) {
+    return res.status(400).json({ error: "username required" });
+  }
+
+  try {
+    db.prepare(
+      "INSERT INTO GamePlayers (GID, Username) VALUES (?, ?)"
+    ).run(gameId, username);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
