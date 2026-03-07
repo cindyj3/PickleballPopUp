@@ -75,12 +75,10 @@ async function loadGames() {
   list.innerHTML = ""
 
   games.forEach(game => {
-
-    const li = document.createElement("li")
-    li.innerText = game.location + " - " + game.time
-    list.appendChild(li)
-
-  })
+  const li = document.createElement("li");
+  li.textContent = `${game.Location || game.location} - ${game.Time || game.time}`;
+  list.appendChild(li);
+});
 }
 
 async function createGame() {
