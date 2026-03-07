@@ -14,6 +14,10 @@ const db = new Database(dbPath);
 
 const schemaPath = path.join(__dirname, "../../db/schema.sql");
 
+console.log("Schema path:", schemaPath);
+console.log("Schema exists:", fs.existsSync(schemaPath));
+
+
 if (fs.existsSync(schemaPath)) {
   const schema = fs.readFileSync(schemaPath, "utf8");
   db.exec(schema);
