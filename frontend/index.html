@@ -5,132 +5,229 @@
   <title>Pickleball PopUp</title>
 
   <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 40px;
-    background: #f7f7f7;
-  }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f4f6f8;
+    }
 
-  h1 {
-    color: #2c3e50;
-  }
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
 
-  input {
-    padding: 8px;
-    margin-right: 10px;
-  }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 5px;
+    }
 
-  button {
-    padding: 8px 14px;
-    background: #2ecc71;
-    border: none;
-    color: white;
-    cursor: pointer;
-  }
+    .user {
+      color: #555;
+      margin-bottom: 20px;
+    }
 
-  button:hover {
-    background: #27ae60;
-  }
+    input {
+      padding: 10px;
+      margin-right: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
 
-  ul {
-    margin-top: 20px;
-  }
+    button {
+      padding: 10px 16px;
+      background: #2ecc71;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 6px;
+    }
 
-  li {
-    padding: 6px;
-    background: white;
-    margin-bottom: 6px;
-    border-radius: 4px;
-  }
+    button:hover {
+      background: #27ae60;
+    }
+
+    button:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+
+    #gamesList {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 15px;
+    }
+
+    .game-card {
+      background: white;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .players {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: green;
+    }
   </style>
-
 </head>
 
 <body>
 
-<h1>🏓 Pickleball PopUp</h1>
+<div class="container">
 
-<h2>Create Game</h2>
+  <h1>Pickleball PopUp</h1>
+  <p id="userDisplay" class="user"></p>
 
-<input id="location" placeholder="Location">
-<input id="time" placeholder="Time">
-<button onclick="createGame()">Create Game</button>
+  <h2>Create Game</h2>
 
-<h2>Available Games</h2>
+  <input id="location" placeholder="Enter location">
+  <input id="time" type="datetime-local">
+  <button onclick="createGame()">Create Game</button>
 
-<button onclick="loadGames()">Refresh Games</button>
+  <p id="statusMessage" class="status"></p>
 
-<ul id="gamesList"></ul>
+  <h2>Available Games</h2>
+
+  <button onclick="loadGames()">Refresh Games</button>
+
+  <div id="gamesList"></div>
+
+</div>
 
 <script>
 
 const API = "https://pickleballpopup.onrender.com/api"
 
-async function loadGames() {
+let username = localStorage.getItem("username");
 
-  const res = await fetch(API + "/games")
-  const games = await res.json()
-
-  const list = document.getElementById("gamesList")
-  list.innerHTML = ""
-
-  games.forEach(game => {
-
-const li = document.createElement("li");
-
-li.innerHTML = `
-  ${game.Location} - ${game.GameTime}
-  <button onclick="joinGame(${game.GID})">Join</button>
-`;
-
-list.appendChild(li);
-
-});
+if (!username) {
+  username = prompt("Enter your name:");
+  if (username) {
+    localStorage.setItem("username", username);
+  }
 }
+
+document.getElementById("userDisplay").innerText = "Logged in as: " + username;
+
+window.onload = loadGames;
+
+async function loadGames() {
+  try {
+    const res = await fetch(API + "/games");
+    const games = await res.json();
+
+    const list = document.getElementById("gamesList");
+    list.innerHTML = "";
+
+    for (const game of games) {
+
+      const playersRes = await fetch(API + `/games/${game.GID}/players`);
+      const players = await playersRes.json();
+
+      const playerNames = players.map(p => p.Username);
+      const joined = playerNames.includes(username);
+
+      const div = document.createElement("div");
+      div.className = "game-card";
+
+      div.innerHTML = `
+        <h3>${game.Location}</h3>
+        <p><strong>Time:</strong> ${formatTime(game.GameTime)}</p>
+
+        <p class="players">
+          ${playerNames.length} player(s)<br>
+          ${playerNames.join(", ") || "No players yet"}
+        </p>
+
+        <button 
+          onclick="joinGame(${game.GID})" 
+          ${joined ? "disabled" : ""}
+        >
+          ${joined ? "Joined" : "Join Game"}
+        </button>
+      `;
+
+      list.appendChild(div);
+    }
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function formatTime(time) {
+  if (!time) return "";
+  return new Date(time).toLocaleString();
+}
+
 async function createGame() {
 
-const location = document.getElementById("location").value
-const time = document.getElementById("time").value
+  const location = document.getElementById("location").value;
+  const time = document.getElementById("time").value;
 
-const res = await fetch(API + "/games", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-  location,
-  time,
-  username: "Cindy"
-})})
+  if (!location || !time) {
+    alert("Please fill out all fields");
+    return;
+  }
 
-const data = await res.json()
-console.log(data)
+  try {
+    const res = await fetch(API + "/games", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location,
+        time
+      })
+    });
 
-document.getElementById("location").value = ""
-document.getElementById("time").value = ""
+    await res.json();
 
-loadGames()
+    document.getElementById("location").value = "";
+    document.getElementById("time").value = "";
+
+    document.getElementById("statusMessage").innerText = "Game created";
+
+    loadGames();
+
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 async function joinGame(gameId) {
 
-const username = prompt("Enter your name")
+  if (!username) {
+    alert("No username found.");
+    return;
+  }
 
-if (!username) return
+  try {
+    const res = await fetch(API + "/games/" + gameId + "/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username })
+    });
 
-const res = await fetch(API + "/games/" + gameId + "/join", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username })
-})
+    const data = await res.json();
 
-const data = await res.json()
-console.log(data)
+    document.getElementById("statusMessage").innerText =
+      data.message || "Joined game";
 
-loadGames()
+    loadGames();
 
+  } catch (err) {
+    console.error(err);
+  }
 }
 
-loadGames()
-setInterval(loadGames, 3000) // Refresh games every 3 seconds
+setInterval(loadGames, 5000);
 
 </script>
 
