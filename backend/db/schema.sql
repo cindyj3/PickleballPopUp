@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS Games (
     GID INTEGER PRIMARY KEY AUTOINCREMENT,
     GameTime DATETIME NOT NULL,
     Location VARCHAR(255),
-    Status VARCHAR(20) CHECK (Status IN ('scheduled', 'completed')) NOT NULL
+    Status VARCHAR(20) CHECK (Status IN ('scheduled', 'completed')) NOT NULL,
+    Type TEXT
 );
 
 CREATE TABLE IF NOT EXISTS GamePlayers (
