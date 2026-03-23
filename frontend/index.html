@@ -1,2 +1,202 @@
-“We implemented user session handling, dynamic profile viewing, and administrative reset functionality to support
-testing and scalability.”
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Pickleball PopUp</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            margin: 40px;
+            background: #f4f6f8;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        input,
+        select {
+            padding: 10px;
+            margin: 5px;
+        }
+
+        button {
+            padding: 10px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 6px;
+        }
+
+        button:hover {
+            background: #27ae60;
+        }
+
+        .game-card {
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Pickleball PopUp</h1>
+        <p id="userDisplay"></p>
+
+        <h2>User</h2>
+        <input id="usernameInput" placeholder="Enter your name">
+        <button onclick="login()">Sign In</button>
+        <button onclick="logout()">Sign Out</button>
+        <button onclick="switchUser()">Switch User</button>
+        <button onclick="resetApp()">Reset App</button>
+
+        <h2>Create Game</h2>
+        <input id="location" placeholder="Location">
+        <input id="time" type="datetime-local">
+
+        <select id="gameType">
+            <option value="singles">Singles</option>
+            <option value="doubles">Doubles</option>
+        </select>
+
+        <button onclick="createGame()">Create Game</button>
+
+        <h2>Games</h2>
+        <div id="gamesList"></div>
+
+    </div>
+
+    <script>
+
+        const API = "https://pickleballpopup.onrender.com/api"
+
+        let username = localStorage.getItem("username");
+
+        function updateUserDisplay() {
+            document.getElementById("userDisplay").innerText =
+                username ? "Logged in as: " + username : "Not logged in";
+        }
+
+        updateUserDisplay();
+
+        function login() {
+            const input = document.getElementById("usernameInput").value;
+            if (!input) return alert("Enter name");
+
+            username = input;
+            localStorage.setItem("username", username);
+
+            updateUserDisplay();
+            loadGames();
+        }
+
+        function logout() {
+            localStorage.removeItem("username");
+            username = null;
+            updateUserDisplay();
+        }
+
+        function switchUser() {
+            logout();
+        }
+
+        async function resetApp() {
+            await fetch(API + "/games/reset", { method: "POST" });
+            logout();
+            loadGames();
+        }
+
+        window.onload = loadGames;
+
+        async function loadGames() {
+            const res = await fetch(API + "/games");
+            const games = await res.json();
+
+            const container = document.getElementById("gamesList");
+            container.innerHTML = "";
+
+            for (const game of games) {
+
+                const playersRes = await fetch(API + `/games/${game.GID}/players`);
+                const players = await playersRes.json();
+
+                const names = players.map(p => p.Username);
+                const joined = username && names.includes(username);
+
+                const div = document.createElement("div");
+                div.className = "game-card";
+
+                div.innerHTML = `
+      <h3>${game.Location}</h3>
+      <p>${new Date(game.GameTime).toLocaleString()}</p>
+      <p>Type: ${game.Type || "N/A"}</p>
+
+      <p>
+        ${names.map(n => `<span onclick="viewProfile('${n}')">${n}</span>`).join(", ") || "No players"}
+      </p>
+
+      ${joined
+                        ? `<button onclick="leaveGame(${game.GID})">Leave</button>`
+                        : `<button onclick="joinGame(${game.GID})">Join</button>`
+                    }
+    `;
+
+                container.appendChild(div);
+            }
+        }
+
+        async function createGame() {
+            const location = document.getElementById("location").value;
+            const time = document.getElementById("time").value;
+            const type = document.getElementById("gameType").value;
+
+            await fetch(API + "/games", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ location, time, type })
+            });
+
+            loadGames();
+        }
+
+        async function joinGame(id) {
+            if (!username) return alert("Login first");
+
+            await fetch(API + `/games/${id}/join`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
+
+            loadGames();
+        }
+
+        async function leaveGame(id) {
+            await fetch(API + `/games/${id}/leave`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
+
+            loadGames();
+        }
+
+        async function viewProfile(name) {
+            const res = await fetch(API + "/games/users/" + name);
+            const data = await res.json();
+
+            alert(`User: ${data.username}\nGames: ${data.totalGames}`);
+        }
+
+    </script>
+
+</body>
+
+</html>
