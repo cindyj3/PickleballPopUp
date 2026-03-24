@@ -3,9 +3,12 @@ const db = require("../db");
 
 const router = express.Router();
 
-/* GET all games */
+/* GET games (sorted by time) */
 router.get("/", (req, res) => {
-  const games = db.prepare("SELECT * FROM Games ORDER BY GID DESC").all();
+  const games = db.prepare(
+    "SELECT * FROM Games ORDER BY GameTime ASC"
+  ).all();
+
   res.json(games);
 });
 
@@ -17,10 +20,7 @@ router.post("/", (req, res) => {
     "INSERT INTO Games (Location, GameTime, Status, Type) VALUES (?, ?, ?, ?)"
   ).run(location, time, "scheduled", type);
 
-  const game = db.prepare("SELECT * FROM Games WHERE GID = ?")
-    .get(info.lastInsertRowid);
-
-  res.json(game);
+  res.json({ success: true });
 });
 
 /* JOIN */
@@ -33,6 +33,14 @@ router.post("/:id/join", (req, res) => {
   if (!user) {
     const result = db.prepare("INSERT INTO Users (Username) VALUES (?)").run(username);
     user = db.prepare("SELECT * FROM Users WHERE UID = ?").get(result.lastInsertRowid);
+  }
+
+  const count = db.prepare(
+    "SELECT COUNT(*) as total FROM GamePlayers WHERE GID = ?"
+  ).get(gameId).total;
+
+  if (count >= 4) {
+    return res.json({ error: "Game full" });
   }
 
   const exists = db.prepare(
@@ -70,23 +78,6 @@ router.get("/:id/players", (req, res) => {
   `).all(req.params.id);
 
   res.json(players);
-});
-
-/* USER PROFILE */
-router.get("/users/:username", (req, res) => {
-  const user = db.prepare("SELECT * FROM Users WHERE Username = ?")
-    .get(req.params.username);
-
-  if (!user) return res.json({});
-
-  const count = db.prepare(
-    "SELECT COUNT(*) as total FROM GamePlayers WHERE UID = ?"
-  ).get(user.UID);
-
-  res.json({
-    username: req.params.username,
-    totalGames: count.total
-  });
 });
 
 /* RESET */
