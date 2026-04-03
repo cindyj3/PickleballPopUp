@@ -10,8 +10,24 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
+// 🔥 DELETE DATABASE ON RENDER (PRODUCTION ONLY)
+if (process.env.NODE_ENV === "production") {
+  try {
+    if (fs.existsSync(dbPath)) {
+      fs.unlinkSync(dbPath);
+      console.log("Old database deleted");
+    } else {
+      console.log("No existing database found");
+    }
+  } catch (err) {
+    console.log("Error deleting DB:", err);
+  }
+}
+
+// create database
 const db = new Database(dbPath);
 
+// load schema
 const schemaPath = path.join(process.cwd(), "db/schema.sql");
 
 console.log("Schema path:", schemaPath);

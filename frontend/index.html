@@ -2,352 +2,351 @@
 <html>
 
 <head>
-    <title>The BARn Boys Scorebook</title>
+    <title>Pop-Up Pickleball</title>
 
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0;
-            background: #f5f7fb;
+            background: #f6f8f7;
         }
 
+        /* NAVBAR */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 40px;
+            background: white;
+            border-bottom: 1px solid #eee;
+        }
+
+        .logo {
+            font-weight: bold;
+            color: #1f8f5f;
+        }
+
+        .nav-links span {
+            margin-left: 20px;
+            color: #666;
+            cursor: pointer;
+        }
+
+        .nav-links span.active {
+            color: #1f8f5f;
+            font-weight: 600;
+        }
+
+        /* HERO */
+        .hero {
+            background: linear-gradient(135deg, #e8f7ef, #f4fbf7);
+            text-align: center;
+            padding: 60px 20px;
+            border-radius: 20px;
+            margin: 30px auto;
+            max-width: 900px;
+        }
+
+        .hero h1 {
+            font-size: 40px;
+        }
+
+        .hero span {
+            color: #1f8f5f;
+        }
+
+        .hero p {
+            color: #666;
+        }
+
+        /* BUTTONS */
+        button {
+            border-radius: 10px;
+            border: none;
+            padding: 10px 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .primary {
+            background: #1f8f5f;
+            color: white;
+        }
+
+        .outline {
+            border: 2px solid #1f8f5f;
+            background: white;
+            color: #1f8f5f;
+        }
+
+        /* CONTAINER */
         .container {
             max-width: 900px;
             margin: auto;
-            padding: 30px;
         }
 
-        h1 {
-            font-size: 40px;
-            margin-bottom: 5px;
+        /* GRID */
+        #gamesList {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
         }
 
-        h2 {
-            margin-top: 0;
-        }
-
-        .subtitle {
-            color: #666;
-            margin-bottom: 20px;
-        }
-
-        .section {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-top: 20px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        input,
-        select {
-            padding: 12px;
-            margin: 5px 5px 10px 0;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            font-size: 14px;
-        }
-
-        input:focus,
-        select:focus {
-            outline: none;
-            border-color: #2ecc71;
-        }
-
-        button {
-            padding: 12px 16px;
-            background: #2ecc71;
-            border: none;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: 0.2s;
-            margin: 5px 5px 5px 0;
-        }
-
-        button:hover {
-            background: #27ae60;
-            transform: translateY(-1px);
-        }
-
-        .helper {
-            font-size: 13px;
-            color: #777;
-            margin-top: -5px;
-        }
-
+        /* CARD */
         .game-card {
             background: white;
             padding: 18px;
-            border-radius: 12px;
-            margin: 12px 0;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-            transition: 0.2s;
+            border-radius: 14px;
+            border: 1px solid #eee;
         }
 
-        .game-card:hover {
-            transform: translateY(-2px);
+        .status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
         }
 
-        .joined {
-            border: 2px solid #2ecc71;
+        .scheduled {
+            background: #e8f7ef;
+            color: #1f8f5f;
         }
 
-        #gamesList {
+        .completed {
+            background: #fdecea;
+            color: #c0392b;
+        }
+
+        input, select {
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            width: 100%;
             margin-top: 10px;
         }
+
+        .page {
+            display: none;
+        }
+
+        .active-page {
+            display: block;
+        }
+
     </style>
 </head>
 
 <body>
 
-    <div class="container">
+<!-- NAVBAR -->
+<div class="navbar">
+    <div class="logo">Pop-Up</div>
+    <div class="nav-links">
+        <span onclick="switchPage('home')" class="active">Home</span>
+        <span onclick="switchPage('browse')">Browse</span>
+        <span onclick="switchPage('create')">Create</span>
+        <span onclick="switchPage('profile')">Profile</span>
+    </div>
+</div>
 
-        <h1>The BARn Boys Scorebook </h1>
-        <p class="subtitle">Track games, join matches, and compete with friends!</p>
-        <p id="userDisplay"></p>
+<div class="container">
 
-        <!-- SIGN IN -->
-        <div class="section">
-            <h2>Sign In</h2>
+    <!-- HOME -->
+    <div id="home" class="page active-page">
+        <div class="hero">
+            <h1>Find Your Next <span>Pickleball Game</span></h1>
+            <p>Connect with players and organize games easily</p>
 
-            <input id="usernameInput" placeholder="Enter display name (e.g., Cindy)">
-            <button onclick="login()">Sign In</button>
-            <button onclick="logout()">Sign Out</button>
-
-            <p class="helper">
-                Use any name — this is how other players will see you.
-            </p>
+            <button class="primary" onclick="switchPage('browse')">Browse Games</button>
+            <button class="outline" onclick="switchPage('create')">Create Game</button>
         </div>
-
-        <!-- CREATE GAME -->
-        <div class="section">
-            <h2>Schedule a Game</h2>
-
-            <input id="location" placeholder="Location">
-            <input id="time" type="datetime-local">
-
-            <select id="gameType">
-                <option value="singles">Singles</option>
-                <option value="doubles">Doubles</option>
-            </select>
-
-            <button onclick="createGame()">Create Game</button>
-            <p id="statusMessage"></p>
-        </div>
-
-        <!-- SEARCH -->
-        <div class="section">
-            <h2>Search</h2>
-            <input id="searchInput" placeholder="Search location..." oninput="loadGames()">
-        </div>
-
-        <!-- GAMES -->
-        <div class="section">
-            <h2>Available Games</h2>
-            <div id="gamesList"></div>
-        </div>
-
-        <!-- EXTRA -->
-        <div class="section">
-            <button onclick="loadLeaderboard()">Leaderboard</button>
-            <button onclick="loadHistory()">Game History</button>
-        </div>
-
     </div>
 
-    <script>
+    <!-- BROWSE -->
+    <div id="browse" class="page">
+        <h2>Available Games</h2>
+        <input id="searchInput" placeholder="Search location..." oninput="loadGames()">
+        <div id="gamesList"></div>
+    </div>
 
-        const API = "https://pickleballpopup.onrender.com/api"
+    <!-- CREATE -->
+    <div id="create" class="page">
+        <h2>Create Game</h2>
 
-        let username = localStorage.getItem("username");
+        <input id="location" placeholder="Location">
+        <input id="time" type="datetime-local">
 
-        function updateUserDisplay() {
-            document.getElementById("userDisplay").innerText =
-                username
-                    ? "Signed in as: " + username
-                    : "Please sign in to join games";
-        }
+        <select id="gameType">
+            <option value="singles">Singles</option>
+            <option value="doubles">Doubles</option>
+        </select>
 
-        updateUserDisplay();
+        <button id="createBtn" class="primary" onclick="createGame()">Create</button>
+    </div>
 
-        function login() {
-            const input = document.getElementById("usernameInput").value;
-            if (!input) return alert("Enter a name");
+    <!-- PROFILE -->
+    <div id="profile" class="page">
+        <h2>Profile</h2>
+        <p id="userDisplay"></p>
 
-            username = input;
-            localStorage.setItem("username", username);
+        <input id="usernameInput" placeholder="Enter name">
+        <button class="primary" onclick="login()">Sign In</button>
+        <button onclick="logout()">Sign Out</button>
+    </div>
 
-            updateUserDisplay();
-            loadGames();
-        }
+</div>
 
-        function logout() {
-            localStorage.removeItem("username");
-            username = null;
-            updateUserDisplay();
-        }
+<script>
 
-        window.onload = loadGames;
+const API = "https://pickleballpopup.onrender.com/api";
 
-        async function loadGames() {
+let username = localStorage.getItem("username");
 
-            const container = document.getElementById("gamesList");
-            container.innerHTML = "Loading...";
+function switchPage(page) {
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active-page"));
+    document.getElementById(page).classList.add("active-page");
+}
 
-            const search = document.getElementById("searchInput").value.toLowerCase();
+function updateUserDisplay() {
+    document.getElementById("userDisplay").innerText =
+        username ? "Signed in as: " + username : "Not signed in";
+}
 
-            const res = await fetch(API + "/games");
-            const games = await res.json();
+updateUserDisplay();
 
-            container.innerHTML = "";
+function login() {
+    const input = document.getElementById("usernameInput").value;
+    username = input;
+    localStorage.setItem("username", username);
+    updateUserDisplay();
+}
 
-            if (games.length === 0) {
-                container.innerHTML = "<p>No games yet. Create one!</p>";
-                return;
-            }
+function logout() {
+    localStorage.removeItem("username");
+    username = null;
+    updateUserDisplay();
+}
 
-            for (const game of games) {
+async function loadGames() {
 
-                if (!game.Location.toLowerCase().includes(search)) continue;
+    const container = document.getElementById("gamesList");
+    container.innerHTML = "Loading...";
 
-                const playersRes = await fetch(API + `/games/${game.GID}/players`);
-                const players = await playersRes.json();
+    const res = await fetch(API + "/games");
+    const games = await res.json();
 
-                const names = players.map(p => p.Username);
-                const joined = username && names.includes(username);
-                const isFull = names.length >= 4;
+    container.innerHTML = "";
 
-                const div = document.createElement("div");
-                div.className = "game-card";
-                if (joined) div.classList.add("joined");
+    for (const game of games) {
 
-                div.innerHTML = `
-      <h3>${game.Location}</h3>
-      <p>${new Date(game.GameTime).toLocaleString()}</p>
-      <p>Type: ${game.Type || "N/A"}</p>
+        const playersRes = await fetch(API + `/games/${game.GID}/players`);
+        const players = await playersRes.json();
 
-      <p>${names.length}/4 players</p>
-      <p>${names.join(", ") || "No players yet"}</p>
+        const names = players.map(p => p.Username);
+        const joined = username && names.includes(username);
+        const isFull = names.length >= 4;
 
-      ${joined ? "<p>You joined this game</p>" : ""}
+        const now = new Date();
+        const gameTime = new Date(game.GameTime);
 
-      ${!username
-                        ? "<p>Sign in to join</p>"
-                        : isFull
-                            ? "<p>Game Full</p>"
-                            : joined
-                                ? `<button onclick="leaveGame(${game.GID})">Leave</button>`
-                                : `<button onclick="joinGame(${game.GID})">Join</button>`
-                    }
+        const canRecord =
+            username &&
+            game.Status === "scheduled" &&
+            gameTime <= now &&
+            names.length >= 2;
 
-      ${username && game.Status === "scheduled"
-                        ? `<button onclick="recordResult(${game.GID})">Record Result</button>`
-                        : game.Status === "completed"
-                            ? "<p>Completed</p>"
-                            : ""
-                    }
-    `;
+        const div = document.createElement("div");
+        div.className = "game-card";
 
-                container.appendChild(div);
-            }
-        }
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between;">
+                <strong>${game.Location}</strong>
+                <span class="status ${game.Status}">
+                    ${game.Status}
+                </span>
+            </div>
 
-        async function createGame() {
-            if (!username) return alert("Please sign in first");
+            <p>${new Date(game.GameTime).toLocaleString()}</p>
+            <p>${names.length}/4 players</p>
+            <p>${names.join(", ") || "No players yet"}</p>
 
-            const location = document.getElementById("location").value;
-            const time = document.getElementById("time").value;
-            const type = document.getElementById("gameType").value;
+            ${username && !joined && !isFull
+                ? `<button class="primary" onclick="joinGame(${game.GID})">Join</button>`
+                : ""}
 
-            if (!location || !time) return alert("Fill all fields");
+            ${joined
+                ? `<button class="outline" onclick="leaveGame(${game.GID})">Leave</button>`
+                : ""}
 
-            await fetch(API + "/games", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ location, time, type })
-            });
+            ${canRecord
+                ? `<button class="primary" onclick="recordResult(${game.GID})">Record</button>`
+                : ""}
+        `;
 
-            document.getElementById("statusMessage").innerText = "Game created!";
-            loadGames();
-        }
+        container.appendChild(div);
+    }
+}
 
-        async function joinGame(id) {
-            if (!username) return alert("Sign in first");
+async function createGame() {
 
-            const res = await fetch(API + `/games/${id}/join`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username })
-            });
+    const btn = document.getElementById("createBtn");
+    btn.disabled = true;
+    btn.innerText = "Creating...";
 
-            const data = await res.json();
-            document.getElementById("statusMessage").innerText =
-                data.error || "Joined game";
+    const location = document.getElementById("location").value;
+    const time = document.getElementById("time").value;
+    const type = document.getElementById("gameType").value;
 
-            loadGames();
-        }
+    const res = await fetch(API + "/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location, time, type })
+    });
 
-        async function leaveGame(id) {
-            await fetch(API + `/games/${id}/leave`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username })
-            });
+    const data = await res.json();
 
-            document.getElementById("statusMessage").innerText = "Left game";
-            loadGames();
-        }
+    alert(data.error || "Game created");
 
-        async function recordResult(id) {
-            const winner = prompt("Enter winner name");
-            if (!winner) return;
+    btn.disabled = false;
+    btn.innerText = "Create";
 
-            await fetch(API + `/games/${id}/result`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ winner })
-            });
+    loadGames();
+}
 
-            alert("Result recorded!");
-            loadGames();
-        }
+async function joinGame(id) {
+    await fetch(API + `/games/${id}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username })
+    });
 
-        async function loadLeaderboard() {
-            const res = await fetch(API + "/games/leaderboard");
-            const data = await res.json();
+    loadGames();
+}
 
-            let text = "Leaderboard:\n\n";
+async function leaveGame(id) {
+    await fetch(API + `/games/${id}/leave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username })
+    });
 
-            data.forEach(p => {
-                const percent = p.totalGames
-                    ? ((p.wins / p.totalGames) * 100).toFixed(1)
-                    : 0;
+    loadGames();
+}
 
-                text += `${p.Username} - ${p.wins} wins (${percent}%)\n`;
-            });
+async function recordResult(id) {
+    const winner = prompt("Enter winner name");
+    if (!winner) return;
 
-            alert(text);
-        }
+    await fetch(API + `/games/${id}/result`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ winner })
+    });
 
-        async function loadHistory() {
-            const res = await fetch(API + "/games/history");
-            const games = await res.json();
+    loadGames();
+}
 
-            let text = "Completed Games:\n\n";
+setInterval(loadGames, 5000);
 
-            games.forEach(g => {
-                text += `${g.Location} - ${new Date(g.GameTime).toLocaleString()}\n`;
-            });
-
-            alert(text);
-        }
-
-        setInterval(loadGames, 5000);
-
-    </script>
+</script>
 
 </body>
-
 </html>

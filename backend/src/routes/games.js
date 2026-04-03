@@ -3,7 +3,7 @@ const db = require("../db");
 
 const router = express.Router();
 
-/* GET games (sorted by time) */
+/* GET games */
 router.get("/", (req, res) => {
   const games = db.prepare(
     "SELECT * FROM Games ORDER BY GameTime ASC"
@@ -12,11 +12,20 @@ router.get("/", (req, res) => {
   res.json(games);
 });
 
-/* CREATE game */
+/* CREATE (with duplicate prevention) */
 router.post("/", (req, res) => {
   const { location, time, type } = req.body;
 
-  const info = db.prepare(
+  const existing = db.prepare(`
+    SELECT * FROM Games
+    WHERE Location = ? AND GameTime = ? AND Status = 'scheduled'
+  `).get(location, time);
+
+  if (existing) {
+    return res.json({ error: "Game already exists" });
+  }
+
+  db.prepare(
     "INSERT INTO Games (Location, GameTime, Status, Type) VALUES (?, ?, ?, ?)"
   ).run(location, time, "scheduled", type);
 
@@ -39,16 +48,15 @@ router.post("/:id/join", (req, res) => {
     "SELECT COUNT(*) as total FROM GamePlayers WHERE GID = ?"
   ).get(gameId).total;
 
-  if (count >= 4) {
-    return res.json({ error: "Game full" });
-  }
+  if (count >= 4) return res.json({ error: "Game full" });
 
   const exists = db.prepare(
     "SELECT * FROM GamePlayers WHERE GID = ? AND UID = ?"
   ).get(gameId, user.UID);
 
   if (!exists) {
-    db.prepare("INSERT INTO GamePlayers (GID, UID) VALUES (?, ?)").run(gameId, user.UID);
+    db.prepare("INSERT INTO GamePlayers (GID, UID) VALUES (?, ?)")
+      .run(gameId, user.UID);
   }
 
   res.json({ success: true });
@@ -80,13 +88,59 @@ router.get("/:id/players", (req, res) => {
   res.json(players);
 });
 
-/* RESET */
-router.post("/reset", (req, res) => {
-  db.prepare("DELETE FROM GamePlayers").run();
-  db.prepare("DELETE FROM Users").run();
-  db.prepare("DELETE FROM Games").run();
+/* RESULT */
+router.post("/:id/result", (req, res) => {
+  const { winner } = req.body;
+  const gameId = req.params.id;
+
+  const user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(winner);
+
+  const players = db.prepare(
+    "SELECT * FROM GamePlayers WHERE GID = ?"
+  ).all(gameId);
+
+  players.forEach(p => {
+    db.prepare(`
+      UPDATE GamePlayers
+      SET IsWinner = ?
+      WHERE GID = ? AND UID = ?
+    `).run(p.UID === user.UID ? 1 : 0, gameId, p.UID);
+  });
+
+  db.prepare(`
+    UPDATE Games
+    SET Status = 'completed'
+    WHERE GID = ?
+  `).run(gameId);
 
   res.json({ success: true });
+});
+
+/* LEADERBOARD */
+router.get("/leaderboard", (req, res) => {
+  const data = db.prepare(`
+    SELECT 
+      Users.Username,
+      COUNT(GamePlayers.GID) as totalGames,
+      SUM(CASE WHEN GamePlayers.IsWinner = 1 THEN 1 ELSE 0 END) as wins
+    FROM Users
+    LEFT JOIN GamePlayers ON Users.UID = GamePlayers.UID
+    GROUP BY Users.UID
+    ORDER BY wins DESC
+  `).all();
+
+  res.json(data);
+});
+
+/* HISTORY */
+router.get("/history", (req, res) => {
+  const games = db.prepare(`
+    SELECT * FROM Games
+    WHERE Status = 'completed'
+    ORDER BY GameTime DESC
+  `).all();
+
+  res.json(games);
 });
 
 module.exports = router;
