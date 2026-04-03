@@ -1,5 +1,3 @@
-
-console.log("🔥 GAMES ROUTE FILE LOADED");
 const express = require("express");
 const db = require("../db");
 
@@ -14,13 +12,16 @@ router.get("/", (req, res) => {
   res.json(games);
 });
 
-/* CREATE (with duplicate prevention) */
+/* CREATE (no duplicates + fix null + normalize) */
 router.post("/", (req, res) => {
-  const { location, time, type } = req.body;
-  const username = req.body.username.trim().toLowerCase();
-  console.log("🔥 CREATE ROUTE HIT");
-  console.log("BODY:", req.body);
-  console.log("CREATE REQUEST:", req.body); // 👈 ADD THIS DEBUG
+  let { location, time, type, username } = req.body;
+
+  if (!location || !time) {
+    return res.json({ error: "Missing fields" });
+  }
+
+  location = location.trim().toLowerCase();
+  username = username?.trim().toLowerCase();
 
   const existing = db.prepare(`
     SELECT * FROM Games
@@ -39,33 +40,12 @@ router.post("/", (req, res) => {
   res.json({ success: true });
 });
 
-/* DELETE */
-router.post("/:id/delete", (req, res) => {
-  const username = req.body.username.trim().toLowerCase();
-  const gameId = req.params.id;
-
-  const game = db.prepare("SELECT * FROM Games WHERE GID = ?").get(gameId);
-
-  if (!game) return res.json({ error: "Game not found" });
-
-  if (game.CreatedBy !== username) {
-    return res.json({ error: "Not authorized" });
-  }
-
-  db.prepare("DELETE FROM GamePlayers WHERE GID = ?").run(gameId);
-  db.prepare("DELETE FROM Games WHERE GID = ?").run(gameId);
-
-  res.json({ success: true });
-});
-
-
 /* JOIN */
 router.post("/:id/join", (req, res) => {
   const username = req.body.username.trim().toLowerCase();
   const gameId = req.params.id;
 
   db.prepare("INSERT OR IGNORE INTO Users (Username) VALUES (?)").run(username);
-
   const user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
 
   const count = db.prepare(
@@ -101,15 +81,23 @@ router.post("/:id/leave", (req, res) => {
   res.json({ success: true });
 });
 
-/* PLAYERS */
-router.get("/:id/players", (req, res) => {
-  const players = db.prepare(`
-    SELECT Username FROM Users
-    JOIN GamePlayers ON Users.UID = GamePlayers.UID
-    WHERE GamePlayers.GID = ?
-  `).all(req.params.id);
+/* DELETE */
+router.post("/:id/delete", (req, res) => {
+  const username = req.body.username.trim().toLowerCase();
+  const gameId = req.params.id;
 
-  res.json(players);
+  const game = db.prepare("SELECT * FROM Games WHERE GID = ?").get(gameId);
+
+  if (!game) return res.json({ error: "Game not found" });
+
+  if (game.CreatedBy !== username) {
+    return res.json({ error: "Not authorized" });
+  }
+
+  db.prepare("DELETE FROM GamePlayers WHERE GID = ?").run(gameId);
+  db.prepare("DELETE FROM Games WHERE GID = ?").run(gameId);
+
+  res.json({ success: true });
 });
 
 /* RESULT */
@@ -117,7 +105,8 @@ router.post("/:id/result", (req, res) => {
   const { winner } = req.body;
   const gameId = req.params.id;
 
-  const user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(winner);
+  const user = db.prepare("SELECT * FROM Users WHERE Username = ?")
+    .get(winner.trim().toLowerCase());
 
   const players = db.prepare(
     "SELECT * FROM GamePlayers WHERE GID = ?"

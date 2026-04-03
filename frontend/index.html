@@ -90,14 +90,16 @@
             border: 1px solid #eee;
         }
 
-        .leaderboard-card, .history-card {
+        .leaderboard-card,
+        .history-card {
             background: white;
             padding: 12px;
             border-radius: 10px;
             margin-bottom: 10px;
         }
 
-        input, select {
+        input,
+        select {
             padding: 12px;
             border-radius: 10px;
             border: 1px solid #ddd;
@@ -117,200 +119,217 @@
 
 <body>
 
-<div class="navbar">
-    <div class="logo">Pop-Up</div>
-    <div class="nav-links">
-        <span onclick="switchPage('home')" class="active">Home</span>
-        <span onclick="switchPage('browse')">Browse</span>
-        <span onclick="switchPage('create')">Create</span>
-        <span onclick="switchPage('profile')">Profile</span>
-    </div>
-</div>
-
-<div class="container">
-
-    <div id="home" class="page active-page">
-        <div class="hero">
-            <h1>Find Your Next <span>Pickleball Game</span></h1>
-            <button class="primary" onclick="switchPage('browse')">Browse</button>
-            <button class="outline" onclick="switchPage('create')">Create</button>
+    <div class="navbar">
+        <div class="logo">Pop-Up</div>
+        <div class="nav-links">
+            <span onclick="switchPage('home')" class="active">Home</span>
+            <span onclick="switchPage('browse')">Browse</span>
+            <span onclick="switchPage('create')">Create</span>
+            <span onclick="switchPage('profile')">Profile</span>
         </div>
     </div>
 
-    <div id="browse" class="page">
-        <h2>Games</h2>
-        <div id="gamesList"></div>
+    <div class="container">
 
-        <h2>Leaderboard</h2>
-        <div id="leaderboard"></div>
+        <div id="home" class="page active-page">
+            <div class="hero">
+                <h1>Find Your Next <span>Pickleball Game</span></h1>
+                <button class="primary" onclick="switchPage('browse')">Browse</button>
+                <button class="outline" onclick="switchPage('create')">Create</button>
+            </div>
+        </div>
 
-        <h2>History</h2>
-        <div id="history"></div>
+        <div id="browse" class="page">
+            <h2>Games</h2>
+            <div id="gamesList"></div>
+
+            <h2>Leaderboard</h2>
+            <div id="leaderboard"></div>
+
+            <h2>History</h2>
+            <div id="history"></div>
+        </div>
+
+        <div id="create" class="page">
+            <h2>Create Game</h2>
+            <input id="location" placeholder="Location">
+            <input id="time" type="datetime-local">
+            <select id="gameType">
+                <option value="singles">Singles</option>
+                <option value="doubles">Doubles</option>
+            </select>
+            <button id="createBtn" class="primary" onclick="createGame()">Create</button>
+        </div>
+
+        <div id="profile" class="page">
+            <h2>Profile</h2>
+            <p id="userDisplay"></p>
+            <input id="usernameInput" placeholder="Enter name">
+            <button class="primary" onclick="login()">Sign In</button>
+            <button onclick="logout()">Sign Out</button>
+        </div>
+
     </div>
 
-    <div id="create" class="page">
-        <h2>Create Game</h2>
-        <input id="location" placeholder="Location">
-        <input id="time" type="datetime-local">
-        <select id="gameType">
-            <option value="singles">Singles</option>
-            <option value="doubles">Doubles</option>
-        </select>
-        <button id="createBtn" class="primary" onclick="createGame()">Create</button>
-    </div>
+    <script>
 
-    <div id="profile" class="page">
-        <h2>Profile</h2>
-        <p id="userDisplay"></p>
-        <input id="usernameInput" placeholder="Enter name">
-        <button class="primary" onclick="login()">Sign In</button>
-        <button onclick="logout()">Sign Out</button>
-    </div>
+        const API = "https://pickleballpopup.onrender.com/api"; // UPDATE THIS
+        let username = localStorage.getItem("username");
 
-</div>
+        function switchPage(page) {
+            document.querySelectorAll(".page").forEach(p => p.classList.remove("active-page"));
+            document.getElementById(page).classList.add("active-page");
 
-<script>
+            if (page === "browse") {
+                loadGames();
+                loadLeaderboard();
+                loadHistory();
+            }
+        }
 
-const API = "https://pickleballpopup.onrender.com/api"; // ⚠️ UPDATE THIS
-let username = localStorage.getItem("username");
+        function login() {
+            username = document.getElementById("usernameInput").value.trim().toLowerCase();
+            localStorage.setItem("username", username);
+            document.getElementById("userDisplay").innerText = username;
+        }
 
-function switchPage(page) {
-    document.querySelectorAll(".page").forEach(p => p.classList.remove("active-page"));
-    document.getElementById(page).classList.add("active-page");
+        function logout() {
+            localStorage.removeItem("username");
+            username = null;
+        }
 
-    if (page === "browse") {
-        loadGames();
-        loadLeaderboard();
-        loadHistory();
-    }
-}
+        async function loadGames() {
+            const container = document.getElementById("gamesList");
+            container.innerHTML = "Loading...";
 
-function login() {
-    username = document.getElementById("usernameInput").value.trim().toLowerCase();
-    localStorage.setItem("username", username);
-    document.getElementById("userDisplay").innerText = username;
-}
+            const res = await fetch(API + "/games");
+            const games = await res.json();
 
-function logout() {
-    localStorage.removeItem("username");
-    username = null;
-}
+            const playerPromises = games.map(g =>
+                fetch(API + `/games/${g.GID}/players`).then(r => r.json())
+            );
 
-async function loadGames() {
-    const container = document.getElementById("gamesList");
-    container.innerHTML = "Loading...";
+            const playersList = await Promise.all(playerPromises);
 
-    const res = await fetch(API + "/games");
-    const games = await res.json();
+            container.innerHTML = "";
 
-    const playerPromises = games.map(g =>
-        fetch(API + `/games/${g.GID}/players`).then(r => r.json())
-    );
+            games.forEach((game, i) => {
+                const players = playersList[i];
+                const names = players.map(p => p.Username);
 
-    const playersList = await Promise.all(playerPromises);
+                const div = document.createElement("div");
+                div.className = "game-card";
 
-    container.innerHTML = "";
-
-    games.forEach((game, i) => {
-        const players = playersList[i];
-        const names = players.map(p => p.Username);
-
-        const div = document.createElement("div");
-        div.className = "game-card";
-
-        div.innerHTML = `
-            <h3>${game.Location}</h3>
+                div.innerHTML = `
+            <h3>${game.Location || "No location"}</h3>
             <p>${new Date(game.GameTime).toLocaleString()}</p>
             <p>${names.join(", ") || "None"}</p>
 
             ${!names.includes(username) && names.length < 4
-                ? `<button onclick="joinGame(${game.GID})">Join</button>` : ""}
+                        ? `<button onclick="joinGame(${game.GID})">Join</button>` : ""}
 
             ${names.includes(username)
-                ? `<button onclick="leaveGame(${game.GID})">Leave</button>` : ""}
+                        ? `<button onclick="leaveGame(${game.GID})">Leave</button>` : ""}
 
             ${game.CreatedBy && username &&
-              game.CreatedBy.toLowerCase() === username.toLowerCase()
-                ? `<button class="danger" onclick="deleteGame(${game.GID})">Delete</button>` : ""}
+                        game.CreatedBy.toLowerCase() === username.toLowerCase()
+                        ? `<button class="danger" onclick="deleteGame(${game.GID})">Delete</button>` : ""}
         `;
 
-        container.appendChild(div);
-    });
-}
+                container.appendChild(div);
+            });
+        }
 
-async function loadLeaderboard() {
-    const res = await fetch(API + "/games/leaderboard");
-    const data = await res.json();
+        async function loadLeaderboard() {
+            const res = await fetch(API + "/games/leaderboard");
+            const data = await res.json();
 
-    document.getElementById("leaderboard").innerHTML =
-        data.map((p, i) => `
+            document.getElementById("leaderboard").innerHTML =
+                data.map((p, i) => `
             <div class="leaderboard-card">
-                #${i+1} ${p.Username} | Wins: ${p.wins || 0}
+                #${i + 1} ${p.Username} | Wins: ${p.wins || 0}
             </div>
         `).join("");
-}
+        }
 
-async function loadHistory() {
-    const res = await fetch(API + "/games/history");
-    const games = await res.json();
+        async function loadHistory() {
+            const res = await fetch(API + "/games/history");
+            const games = await res.json();
 
-    document.getElementById("history").innerHTML =
-        games.map(g => `
+            document.getElementById("history").innerHTML =
+                games.map(g => `
             <div class="history-card">
                 ${g.Location} - ${new Date(g.GameTime).toLocaleString()}
             </div>
         `).join("");
-}
+        }
+        async function createGame() {
+            const btn = document.getElementById("createBtn");
+            if (btn.disabled) return;
 
-async function createGame() {
-    const btn = document.getElementById("createBtn");
-    btn.disabled = true;
-    btn.innerText = "Creating...";
+            const locationInput = document.getElementById("location").value.trim();
+            const time = document.getElementById("time").value;
+            const type = document.getElementById("gameType").value;
 
-    await fetch(API + "/games", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            location: location.value,
-            time: time.value,
-            type: gameType.value,
-            username
-        })
-    });
+            if (!locationInput) {
+                alert("Location required");
+                return;
+            }
 
-    btn.disabled = false;
-    btn.innerText = "Create";
-    loadGames();
-}
+            btn.disabled = true;
+            btn.innerText = "Creating...";
 
-async function joinGame(id) {
-    await fetch(API + `/games/${id}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username })
-    });
-    loadGames();
-}
+            const res = await fetch(API + "/games", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    location: locationInput,
+                    time,
+                    type,
+                    username
+                })
+            });
 
-async function leaveGame(id) {
-    await fetch(API + `/games/${id}/leave`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username })
-    });
-    loadGames();
-}
+            const data = await res.json();
 
-async function deleteGame(id) {
-    await fetch(API + `/games/${id}/delete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username })
-    });
-    loadGames();
-}
+            if (data.error) {
+                alert(data.error);
+            }
 
-</script>
+            btn.disabled = false;
+            btn.innerText = "Create";
+
+            loadGames();
+        }
+        async function joinGame(id) {
+            await fetch(API + `/games/${id}/join`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
+            loadGames();
+        }
+
+        async function leaveGame(id) {
+            await fetch(API + `/games/${id}/leave`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
+            loadGames();
+        }
+
+        async function deleteGame(id) {
+            await fetch(API + `/games/${id}/delete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
+            loadGames();
+        }
+
+    </script>
 
 </body>
+
 </html>
