@@ -1,3 +1,5 @@
+
+console.log("🔥 GAMES ROUTE FILE LOADED");
 const express = require("express");
 const db = require("../db");
 
@@ -15,6 +17,10 @@ router.get("/", (req, res) => {
 /* CREATE (with duplicate prevention) */
 router.post("/", (req, res) => {
   const { location, time, type } = req.body;
+  const username = req.body.username.trim().toLowerCase();
+  console.log("🔥 CREATE ROUTE HIT");
+  console.log("BODY:", req.body);
+  console.log("CREATE REQUEST:", req.body); // 👈 ADD THIS DEBUG
 
   const existing = db.prepare(`
     SELECT * FROM Games
@@ -25,24 +31,42 @@ router.post("/", (req, res) => {
     return res.json({ error: "Game already exists" });
   }
 
-  db.prepare(
-    "INSERT INTO Games (Location, GameTime, Status, Type) VALUES (?, ?, ?, ?)"
-  ).run(location, time, "scheduled", type);
+  db.prepare(`
+    INSERT INTO Games (Location, GameTime, Status, Type, CreatedBy)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(location, time, "scheduled", type, username);
 
   res.json({ success: true });
 });
 
-/* JOIN */
-router.post("/:id/join", (req, res) => {
-  const { username } = req.body;
+/* DELETE */
+router.post("/:id/delete", (req, res) => {
+  const username = req.body.username.trim().toLowerCase();
   const gameId = req.params.id;
 
-  let user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
+  const game = db.prepare("SELECT * FROM Games WHERE GID = ?").get(gameId);
 
-  if (!user) {
-    const result = db.prepare("INSERT INTO Users (Username) VALUES (?)").run(username);
-    user = db.prepare("SELECT * FROM Users WHERE UID = ?").get(result.lastInsertRowid);
+  if (!game) return res.json({ error: "Game not found" });
+
+  if (game.CreatedBy !== username) {
+    return res.json({ error: "Not authorized" });
   }
+
+  db.prepare("DELETE FROM GamePlayers WHERE GID = ?").run(gameId);
+  db.prepare("DELETE FROM Games WHERE GID = ?").run(gameId);
+
+  res.json({ success: true });
+});
+
+
+/* JOIN */
+router.post("/:id/join", (req, res) => {
+  const username = req.body.username.trim().toLowerCase();
+  const gameId = req.params.id;
+
+  db.prepare("INSERT OR IGNORE INTO Users (Username) VALUES (?)").run(username);
+
+  const user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
 
   const count = db.prepare(
     "SELECT COUNT(*) as total FROM GamePlayers WHERE GID = ?"
@@ -64,7 +88,7 @@ router.post("/:id/join", (req, res) => {
 
 /* LEAVE */
 router.post("/:id/leave", (req, res) => {
-  const { username } = req.body;
+  const username = req.body.username.trim().toLowerCase();
   const gameId = req.params.id;
 
   const user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);

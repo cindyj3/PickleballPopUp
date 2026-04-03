@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS Games (
     GameTime DATETIME NOT NULL,
     Location VARCHAR(255),
     Status VARCHAR(20) CHECK (Status IN ('scheduled', 'completed')) NOT NULL,
-    Type TEXT
+    Type TEXT,
     CreatedBy TEXT
 
 );

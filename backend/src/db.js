@@ -28,8 +28,7 @@ if (process.env.NODE_ENV === "production") {
 const db = new Database(dbPath);
 
 // load schema
-const schemaPath = path.join(process.cwd(), "db/schema.sql");
-
+const schemaPath = path.join(__dirname, "../db/schema.sql");
 console.log("Schema path:", schemaPath);
 console.log("Schema exists:", fs.existsSync(schemaPath));
 
