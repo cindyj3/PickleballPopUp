@@ -12,7 +12,7 @@ router.get("/", (req, res) => {
   res.json(games);
 });
 
-/* CREATE (no duplicates + fix null + normalize) */
+/* CREATE */
 router.post("/", (req, res) => {
   let { location, time, type, username } = req.body;
 
@@ -34,22 +34,20 @@ router.post("/", (req, res) => {
 
   db.prepare(`
     INSERT INTO Games (Location, GameTime, Status, Type, CreatedBy)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(location, time, "scheduled", type, username);
+    VALUES (?, ?, 'scheduled', ?, ?)
+  `).run(location, time, type, username);
 
   res.json({ success: true });
 });
 
-/* GET PLAYERS FOR A GAME */
+/* GET PLAYERS */
 router.get("/:id/players", (req, res) => {
-  const gameId = req.params.id;
-
   const players = db.prepare(`
     SELECT Users.Username
     FROM GamePlayers
     JOIN Users ON GamePlayers.UID = Users.UID
     WHERE GamePlayers.GID = ?
-  `).all(gameId);
+  `).all(req.params.id);
 
   res.json(players);
 });
@@ -103,10 +101,7 @@ router.post("/:id/delete", (req, res) => {
   const game = db.prepare("SELECT * FROM Games WHERE GID = ?").get(gameId);
 
   if (!game) return res.json({ error: "Game not found" });
-
-  if (game.CreatedBy !== username) {
-    return res.json({ error: "Not authorized" });
-  }
+  if (game.CreatedBy !== username) return res.json({ error: "Not authorized" });
 
   db.prepare("DELETE FROM GamePlayers WHERE GID = ?").run(gameId);
   db.prepare("DELETE FROM Games WHERE GID = ?").run(gameId);
@@ -114,24 +109,42 @@ router.post("/:id/delete", (req, res) => {
   res.json({ success: true });
 });
 
-/* RESULT */
+/* 🔥 RECORD RESULT */
 router.post("/:id/result", (req, res) => {
-  const { winner } = req.body;
+  const { winner, score } = req.body;
   const gameId = req.params.id;
+
+  const game = db.prepare("SELECT * FROM Games WHERE GID = ?").get(gameId);
+  if (!game) return res.json({ error: "Game not found" });
+
+  if (game.Status === "completed") {
+    return res.json({ error: "Game already recorded" });
+  }
 
   const user = db.prepare("SELECT * FROM Users WHERE Username = ?")
     .get(winner.trim().toLowerCase());
+
+  if (!user) return res.json({ error: "Winner not found" });
 
   const players = db.prepare(
     "SELECT * FROM GamePlayers WHERE GID = ?"
   ).all(gameId);
 
+  if (players.length === 0) {
+    return res.json({ error: "No players in game" });
+  }
+
   players.forEach(p => {
     db.prepare(`
       UPDATE GamePlayers
-      SET IsWinner = ?
+      SET IsWinner = ?, Score = ?
       WHERE GID = ? AND UID = ?
-    `).run(p.UID === user.UID ? 1 : 0, gameId, p.UID);
+    `).run(
+      p.UID === user.UID ? 1 : 0,
+      score || null,
+      gameId,
+      p.UID
+    );
   });
 
   db.prepare(`
@@ -143,7 +156,7 @@ router.post("/:id/result", (req, res) => {
   res.json({ success: true });
 });
 
-/* LEADERBOARD */
+/* 🔥 LEADERBOARD */
 router.get("/leaderboard", (req, res) => {
   const data = db.prepare(`
     SELECT 
@@ -152,6 +165,8 @@ router.get("/leaderboard", (req, res) => {
       SUM(CASE WHEN GamePlayers.IsWinner = 1 THEN 1 ELSE 0 END) as wins
     FROM Users
     LEFT JOIN GamePlayers ON Users.UID = GamePlayers.UID
+    LEFT JOIN Games ON GamePlayers.GID = Games.GID
+    WHERE Games.Status = 'completed'
     GROUP BY Users.UID
     ORDER BY wins DESC
   `).all();
