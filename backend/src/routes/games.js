@@ -40,6 +40,20 @@ router.post("/", (req, res) => {
   res.json({ success: true });
 });
 
+/* GET PLAYERS FOR A GAME */
+router.get("/:id/players", (req, res) => {
+  const gameId = req.params.id;
+
+  const players = db.prepare(`
+    SELECT Users.Username
+    FROM GamePlayers
+    JOIN Users ON GamePlayers.UID = Users.UID
+    WHERE GamePlayers.GID = ?
+  `).all(gameId);
+
+  res.json(players);
+});
+
 /* JOIN */
 router.post("/:id/join", (req, res) => {
   const username = req.body.username.trim().toLowerCase();

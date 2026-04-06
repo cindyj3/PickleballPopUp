@@ -133,7 +133,7 @@
 
         <div id="home" class="page active-page">
             <div class="hero">
-                <h1>Find Your Next <span>Pickleball Game</span></h1>
+                <h1>Find Your Next <span>Pickleball Game!</span></h1>
                 <button class="primary" onclick="switchPage('browse')">Browse</button>
                 <button class="outline" onclick="switchPage('create')">Create</button>
             </div>
@@ -173,8 +173,15 @@
 
     <script>
 
-        const API = "https://pickleballpopup.onrender.com/api"; // UPDATE THIS
+        const API = "https://pickleballpopup.onrender.com/api";
         let username = localStorage.getItem("username");
+
+        // Restore user on load
+        window.onload = () => {
+            if (username) {
+                document.getElementById("userDisplay").innerText = username;
+            }
+        };
 
         function switchPage(page) {
             document.querySelectorAll(".page").forEach(p => p.classList.remove("active-page"));
@@ -189,13 +196,26 @@
 
         function login() {
             username = document.getElementById("usernameInput").value.trim().toLowerCase();
+
+            if (!username) {
+                alert("Please enter a name");
+                return;
+            }
+
             localStorage.setItem("username", username);
             document.getElementById("userDisplay").innerText = username;
+            document.getElementById("usernameInput").value = "";
         }
 
         function logout() {
             localStorage.removeItem("username");
             username = null;
+
+            document.getElementById("userDisplay").innerText = "";
+            document.getElementById("usernameInput").value = "";
+
+            alert("Signed out");
+            loadGames();
         }
 
         async function loadGames() {
@@ -221,20 +241,20 @@
                 div.className = "game-card";
 
                 div.innerHTML = `
-            <h3>${game.Location || "No location"}</h3>
-            <p>${new Date(game.GameTime).toLocaleString()}</p>
-            <p>${names.join(", ") || "None"}</p>
+                    <h3>${game.Location || "No location"}</h3>
+                    <p>${new Date(game.GameTime).toLocaleString()}</p>
+                    <p>${names.join(", ") || "None"}</p>
 
-            ${!names.includes(username) && names.length < 4
+                    ${username && !names.includes(username) && names.length < 4
                         ? `<button onclick="joinGame(${game.GID})">Join</button>` : ""}
 
-            ${names.includes(username)
+                    ${username && names.includes(username)
                         ? `<button onclick="leaveGame(${game.GID})">Leave</button>` : ""}
 
-            ${game.CreatedBy && username &&
+                    ${game.CreatedBy && username &&
                         game.CreatedBy.toLowerCase() === username.toLowerCase()
                         ? `<button class="danger" onclick="deleteGame(${game.GID})">Delete</button>` : ""}
-        `;
+                `;
 
                 container.appendChild(div);
             });
@@ -246,10 +266,10 @@
 
             document.getElementById("leaderboard").innerHTML =
                 data.map((p, i) => `
-            <div class="leaderboard-card">
-                #${i + 1} ${p.Username} | Wins: ${p.wins || 0}
-            </div>
-        `).join("");
+                    <div class="leaderboard-card">
+                        #${i + 1} ${p.Username} | Wins: ${p.wins || 0}
+                    </div>
+                `).join("");
         }
 
         async function loadHistory() {
@@ -258,12 +278,15 @@
 
             document.getElementById("history").innerHTML =
                 games.map(g => `
-            <div class="history-card">
-                ${g.Location} - ${new Date(g.GameTime).toLocaleString()}
-            </div>
-        `).join("");
+                    <div class="history-card">
+                        ${g.Location} - ${new Date(g.GameTime).toLocaleString()}
+                    </div>
+                `).join("");
         }
+
         async function createGame() {
+            if (!username) return alert("Please sign in first");
+
             const btn = document.getElementById("createBtn");
             if (btn.disabled) return;
 
@@ -282,49 +305,52 @@
             const res = await fetch(API + "/games", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    location: locationInput,
-                    time,
-                    type,
-                    username
-                })
+                body: JSON.stringify({ location: locationInput, time, type, username })
             });
 
             const data = await res.json();
 
-            if (data.error) {
-                alert(data.error);
-            }
+            if (data.error) alert(data.error);
 
             btn.disabled = false;
             btn.innerText = "Create";
 
             loadGames();
         }
+
         async function joinGame(id) {
+            if (!username) return alert("Please sign in first");
+
             await fetch(API + `/games/${id}/join`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username })
             });
+
             loadGames();
         }
 
         async function leaveGame(id) {
+            if (!username) return alert("Please sign in first");
+
             await fetch(API + `/games/${id}/leave`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username })
             });
+
             loadGames();
         }
 
         async function deleteGame(id) {
+            if (!username) return alert("Please sign in first");
+
             await fetch(API + `/games/${id}/delete`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username })
             });
+
             loadGames();
         }
 
