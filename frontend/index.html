@@ -193,25 +193,26 @@
             }
         }
 
-        function login() {
-            username = document.getElementById("usernameInput").value.trim().toLowerCase();
+        async function login() {
+            const input = document.getElementById("usernameInput").value.trim().toLowerCase();
 
-            if (!username) return alert("Please enter a name");
+            if (!input) return alert("Please enter a name");
 
+            const res = await fetch(API + "/games/users");
+            const users = await res.json();
+
+            const exists = users.some(u => u.Username === input);
+
+            if (exists) {
+                alert("Username already taken. Choose another.");
+                return;
+            }
+
+            username = input;
             localStorage.setItem("username", username);
+
             document.getElementById("userDisplay").innerText = username;
             document.getElementById("usernameInput").value = "";
-        }
-
-        function logout() {
-            localStorage.removeItem("username");
-            username = null;
-
-            document.getElementById("userDisplay").innerText = "";
-            document.getElementById("usernameInput").value = "";
-
-            alert("Signed out");
-            loadGames();
         }
 
         async function loadGames() {
@@ -242,7 +243,8 @@
                     game.CreatedBy && username &&
                     game.CreatedBy.toLowerCase() === username.toLowerCase();
 
-                const isFull = names.length >= 4;
+                const maxPlayers = game.Type === "singles" ? 2 : 4;
+                const isFull = names.length >= maxPlayers;
 
                 const div = document.createElement("div");
                 div.className = "game-card";
@@ -255,7 +257,7 @@
                     <h3>${game.Location || "No location"}</h3>
                     <p>${new Date(game.GameTime).toLocaleString()}</p>
 
-                    <p><b>Players (${names.length}/4):</b> ${names.map(p =>
+                    <p><b>Players (${names.length}/${maxPlayers}):</b> ${names.map(p =>
                     p.isWinner
                         ? `<span style="color:green;font-weight:bold;">${p.name} </span>`
                         : p.name
@@ -273,7 +275,7 @@
                         ? `
                         <div>
                             <select id="winner-${game.GID}">
-                                ${names.map(n => `<option value="${n}">${n}</option>`).join("")}
+                                ${names.map(p => `<option value="${p.name}">${p.name}</option>`).join("")}
                             </select>
 
                             <input id="score-${game.GID}" placeholder="Score (e.g. 11-7)">
@@ -291,8 +293,25 @@
                 container.appendChild(div);
             });
         }
-
         async function recordResult(id) {
+            // get players
+            const playersRes = await fetch(API + `/games/${id}/players`);
+            const players = await playersRes.json();
+
+            // get game info
+            const gamesRes = await fetch(API + "/games");
+            const games = await gamesRes.json();
+            const game = games.find(g => g.GID === id);
+
+            const requiredPlayers = game.Type === "singles" ? 2 : 4;
+
+            // enforce correct player count
+            if (players.length !== requiredPlayers) {
+                alert(`Need exactly ${requiredPlayers} players to record this game`);
+                return;
+            }
+
+            // continue as normal
             const winner = document.getElementById(`winner-${id}`).value;
             const score = document.getElementById(`score-${id}`).value;
 

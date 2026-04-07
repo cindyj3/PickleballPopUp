@@ -12,6 +12,12 @@ router.get("/", (req, res) => {
   res.json(games);
 });
 
+/*  GET ALL USERS (ADD THIS RIGHT HERE) */
+router.get("/users", (req, res) => {
+  const users = db.prepare("SELECT Username FROM Users").all();
+  res.json(users);
+});
+
 /* CREATE */
 router.post("/", (req, res) => {
   let { location, time, type, username } = req.body;
@@ -57,14 +63,26 @@ router.post("/:id/join", (req, res) => {
   const username = req.body.username.trim().toLowerCase();
   const gameId = req.params.id;
 
-  db.prepare("INSERT OR IGNORE INTO Users (Username) VALUES (?)").run(username);
-  const user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
+  let user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
 
+  // If user exists, allow (same user rejoining)
+  // BUT if you want stricter uniqueness per session, see note below
+
+  if (!user) {
+    db.prepare("INSERT INTO Users (Username) VALUES (?)").run(username);
+    user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
+  }
   const count = db.prepare(
     "SELECT COUNT(*) as total FROM GamePlayers WHERE GID = ?"
   ).get(gameId).total;
 
-  if (count >= 4) return res.json({ error: "Game full" });
+  const game = db.prepare("SELECT * FROM Games WHERE GID = ?").get(gameId);
+
+  const maxPlayers = game.Type === "singles" ? 2 : 4;
+
+  if (count >= maxPlayers) {
+    return res.json({ error: "Game full" });
+  }
 
   const exists = db.prepare(
     "SELECT * FROM GamePlayers WHERE GID = ? AND UID = ?"
