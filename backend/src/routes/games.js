@@ -43,7 +43,7 @@ router.post("/", (req, res) => {
 /* GET PLAYERS */
 router.get("/:id/players", (req, res) => {
   const players = db.prepare(`
-    SELECT Users.Username
+    SELECT Users.Username, GamePlayers.IsWinner
     FROM GamePlayers
     JOIN Users ON GamePlayers.UID = Users.UID
     WHERE GamePlayers.GID = ?

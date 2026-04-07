@@ -230,8 +230,13 @@
             container.innerHTML = "";
 
             games.forEach((game, i) => {
+                if (game.Status === "completed") return; // hide completed games
                 const players = playersList[i];
-                const names = players.map(p => p.Username);
+                const names = players.map(p => ({
+                    name: p.Username,
+                    isWinner: p.IsWinner
+                }));
+                const winnerExists = names.some(p => p.isWinner);
 
                 const isCreator =
                     game.CreatedBy && username &&
@@ -242,18 +247,26 @@
                 const div = document.createElement("div");
                 div.className = "game-card";
 
+                if (winnerExists) {
+                    div.style.border = "2px solid green";
+                }
+
                 div.innerHTML = `
                     <h3>${game.Location || "No location"}</h3>
                     <p>${new Date(game.GameTime).toLocaleString()}</p>
 
-                    <p><b>Players (${names.length}/4):</b> ${names.join(", ") || "None"}</p>
+                    <p><b>Players (${names.length}/4):</b> ${names.map(p =>
+                    p.isWinner
+                        ? `<span style="color:green;font-weight:bold;">${p.name} </span>`
+                        : p.name
+                ).join(", ") || "None"}</p>
 
                     ${isFull ? `<p style="color:red;">Roster Full</p>` : ""}
 
-                    ${username && !names.includes(username) && !isFull
+                    ${username && !names.some(p => p.name === username) && !isFull
                         ? `<button onclick="joinGame(${game.GID})">Join</button>` : ""}
 
-                    ${username && names.includes(username)
+                    ${username && names.some(p => p.name === username)
                         ? `<button onclick="leaveGame(${game.GID})">Leave</button>` : ""}
 
                     ${isCreator && game.Status === "scheduled"
