@@ -122,6 +122,7 @@
     <div class="navbar">
         <div class="logo">Pop-Up</div>
         <div class="nav-links">
+            <span id="navUser" style="margin-right:20px; font-weight:600;"></span>
             <span onclick="switchPage('home')" class="active">Home</span>
             <span onclick="switchPage('browse')">Browse</span>
             <span onclick="switchPage('create')">Create</span>
@@ -176,10 +177,22 @@
         const API = "https://pickleballpopup.onrender.com/api";
         let username = localStorage.getItem("username");
 
+        function updateNavbarUser() {
+            const nav = document.getElementById("navUser");
+
+            if (username) {
+                nav.innerText = `Logged in as ${username}`;
+            } else {
+                nav.innerText = "";
+            }
+        }
+
         window.onload = () => {
             if (username) {
                 document.getElementById("userDisplay").innerText = username;
             }
+
+            updateNavbarUser(); // 🔥 add this
         };
 
         function switchPage(page) {
@@ -198,14 +211,20 @@
 
             if (!input) return alert("Please enter a name");
 
+            // ADD THIS RIGHT HERE
+            if (username) {
+                alert("Already signed in. Please log out first.");
+                return;
+            }
+
             const res = await fetch(API + "/games/users");
             const users = await res.json();
 
             const exists = users.some(u => u.Username === input);
 
+            // allow reuse (no real auth system)
             if (exists) {
-                alert("Username already taken. Choose another.");
-                return;
+                console.log("Existing user logging in");
             }
 
             username = input;
@@ -213,8 +232,20 @@
 
             document.getElementById("userDisplay").innerText = username;
             document.getElementById("usernameInput").value = "";
-        }
 
+            updateNavbarUser();
+        }
+        function logout() {
+            localStorage.removeItem("username");
+            username = null;
+
+            document.getElementById("userDisplay").innerText = "";
+            document.getElementById("usernameInput").value = "";
+
+            updateNavbarUser();
+
+            alert("Logged out successfully");
+        }
         async function loadGames() {
             const container = document.getElementById("gamesList");
             container.innerHTML = "Loading...";
