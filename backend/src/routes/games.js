@@ -203,7 +203,7 @@ router.get("/history", (req, res) => {
   res.json(games);
 });
 
-/* RESET DATABASE (TEMPORARY) */
+/* RESET DATABASE (TEMPORARY FOR NOW) */
 router.post("/reset", (req, res) => {
   db.prepare("DELETE FROM GamePlayers").run();
   db.prepare("DELETE FROM Games").run();

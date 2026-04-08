@@ -277,6 +277,8 @@
                 const maxPlayers = game.Type === "singles" ? 2 : 4;
                 const isFull = names.length >= maxPlayers;
 
+                const canRecord = names.length === maxPlayers;
+
                 const div = document.createElement("div");
                 div.className = "game-card";
 
@@ -311,9 +313,11 @@
 
                             <input id="score-${game.GID}" placeholder="Score (e.g. 11-7)">
 
-                            <button class="primary" onclick="recordResult(${game.GID})">
-                                Record Result
-                            </button>
+                            <button class="primary"
+    ${!canRecord ? "disabled" : ""}
+    onclick="recordResult(${game.GID})">
+    Record Result
+</button>
                         </div>
                         ` : ""}
 
@@ -461,9 +465,35 @@
 
             loadGames();
         }
+        // SECRET KEY TO UNLOCK RESET BUTTON
+        document.addEventListener("keydown", (e) => {
+            if (e.shiftKey && e.key.toLowerCase() === "r") {
+                document.getElementById("resetBtn").style.display = "block";
+                alert("Reset button unlocked");
+            }
+        });
+
+        // RESET FUNCTION
+        async function resetData() {
+            const confirmReset = confirm("Are you sure you want to reset all data?");
+            if (!confirmReset) return;
+
+            await fetch(API + "/games/reset", {
+                method: "POST"
+            });
+
+            alert("Database reset!");
+
+            loadGames();
+            loadLeaderboard();
+            loadHistory();
+        }
 
     </script>
-
+    <button id="resetBtn" onclick="resetData()"
+        style="display:none; position:fixed; bottom:20px; right:20px; background:red; color:white; z-index:999;">
+        Reset Demo Data
+    </button>
 </body>
 
 </html>
