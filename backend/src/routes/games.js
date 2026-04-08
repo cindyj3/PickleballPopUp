@@ -203,4 +203,13 @@ router.get("/history", (req, res) => {
   res.json(games);
 });
 
+/* RESET DATABASE (TEMPORARY) */
+router.post("/reset", (req, res) => {
+  db.prepare("DELETE FROM GamePlayers").run();
+  db.prepare("DELETE FROM Games").run();
+  db.prepare("DELETE FROM Users").run();
+
+  res.json({ success: true });
+});
+
 module.exports = router;
