@@ -106,7 +106,7 @@ router.post("/:id/delete", (req, res) => {
 
 /* 🔥 RECORD SUB-GAME (MATCH) */
 router.post("/:id/result", (req, res) => {
-  const { winner, players } = req.body;
+  const { winner, score, players } = req.body;
   const gameId = req.params.id;
 
   if (!winner || !players) {
