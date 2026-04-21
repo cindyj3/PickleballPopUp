@@ -32,8 +32,12 @@ router.get("/leaderboard", async (req, res) => {
         COUNT(DISTINCT sgp.sgid) as "totalGames",
         SUM(CASE WHEN sgp.iswinner = true THEN 1 ELSE 0 END) as wins
       FROM Users
-      LEFT JOIN SubGamePlayers sgp ON Users.UID = sgp.uid
+      JOIN SubGamePlayers sgp ON Users.UID = sgp.uid
+      JOIN SubGames sg ON sgp.SGID = sg.SGID
+      JOIN Games g ON sg.GID = g.GID
+      WHERE g.Status = 'completed'
       GROUP BY Users.UID, Users.Username
+      HAVING COUNT(DISTINCT sgp.sgid) > 0
       ORDER BY wins DESC
     `);
     res.json(rows);
