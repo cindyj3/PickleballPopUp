@@ -290,7 +290,7 @@ export default function EventDetail() {
           {!isCompleted && isCreator && (
             <>
               <button className="btn btn-primary btn-sm" onClick={() => setShowNewGame(true)} disabled={players.length < 2}>+ Record Game</button>
-              <button className="btn btn-secondary btn-sm" onClick={handleFinish}>✓ Finish Event</button>
+              <button className="btn btn-secondary btn-sm" onClick={handleFinish} disabled={subGames.length === 0}>✓ Finish Event</button>
               <button className="btn btn-danger btn-sm" onClick={handleDelete}>🗑</button>
             </>
           )}
