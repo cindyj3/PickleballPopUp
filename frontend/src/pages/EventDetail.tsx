@@ -233,6 +233,7 @@ export default function EventDetail() {
   };
 
   const handleFinish = async () => {
+    if (!window.confirm(`Finish this event? ${subGames.length} games will be recorded.`)) return;
     try { await apiFetch(`/api/games/${id}/finish`, { method: 'POST' }); show('Event completed!', 'success'); load(); }
     catch (err) { show(err instanceof Error ? err.message : 'Error', 'error'); }
   };
@@ -290,7 +291,7 @@ export default function EventDetail() {
           {!isCompleted && isCreator && (
             <>
               <button className="btn btn-primary btn-sm" onClick={() => setShowNewGame(true)} disabled={players.length < 2}>+ Record Game</button>
-              <button className="btn btn-secondary btn-sm" onClick={handleFinish} disabled={subGames.length === 0}>✓ Finish Event</button>
+              <button className="btn btn-secondary btn-sm" onClick={handleFinish} disabled={subGames.length === 0 || players.length < 2}>✓ Finish Event</button>
               <button className="btn btn-danger btn-sm" onClick={handleDelete}>🗑</button>
             </>
           )}
