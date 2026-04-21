@@ -6,9 +6,9 @@
 
     <style>
         body {
-            font-family: -apple-system;
+            font-family: -apple-system, BlinkMacSystemFont;
             margin: 0;
-            background: #f6f8f7;
+            background: #f7faf9;
         }
 
         .navbar {
@@ -30,20 +30,31 @@
             color: #666;
         }
 
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 20px;
+        }
+
         .hero {
             text-align: center;
-            padding: 60px 20px;
-            background: #e8f7ef;
+            padding: 80px 20px;
+            background: linear-gradient(135deg, #e8f7ef, #d4f3e6);
             border-radius: 20px;
             margin: 30px auto;
         }
 
+        .hero h1 {
+            font-size: 42px;
+        }
+
         button {
-            padding: 8px 14px;
-            border-radius: 8px;
+            padding: 10px 16px;
+            border-radius: 10px;
             border: none;
             cursor: pointer;
-            margin: 3px;
+            font-weight: 500;
+            margin-top: 5px;
         }
 
         .primary {
@@ -56,18 +67,14 @@
             color: white;
         }
 
-        .container {
-            max-width: 900px;
-            margin: auto;
-        }
-
         .game-card,
         .leaderboard-card,
         .history-card {
             background: white;
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 10px;
+            padding: 16px;
+            margin: 12px 0;
+            border-radius: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
         input {
@@ -78,319 +85,339 @@
             border: 1px solid #ddd;
         }
 
-        .page {
-            display: none;
-        }
-
-        .active-page {
-            display: block;
-        }
+        .page { display: none; }
+        .active-page { display: block; }
 
         #chatBox {
-            height: 200px;
-            overflow: auto;
+            height: 220px;
+            overflow-y: auto;
             background: white;
             padding: 10px;
-            border-radius: 10px;
+            border-radius: 12px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="navbar">
-        <div class="logo">Pop-Up</div>
-        <div class="nav-links">
-            <span id="navUser"></span>
-            <span onclick="switchPage('home')">Home</span>
-            <span onclick="switchPage('browse')">Browse</span>
-            <span onclick="switchPage('create')">Create</span>
-            <span onclick="switchPage('profile')">Profile</span>
-        </div>
+<div class="navbar">
+    <div class="logo">Pop-Up</div>
+    <div class="nav-links">
+        <span onclick="switchPage('home')">Home</span>
+        <span onclick="switchPage('browse')">Browse</span>
+        <span onclick="switchPage('create')">Create</span>
+        <span onclick="switchPage('profile')">Profile</span>
     </div>
+</div>
 
-    <div class="container">
+<div class="container">
 
-        <div id="home" class="page active-page">
-            <div class="hero">
-                <h1>Pickleball Events</h1>
-                <button class="primary" onclick="switchPage('browse')">Browse</button>
-            </div>
-        </div>
-
-        <div id="browse" class="page">
-            <h2>Events</h2>
-            <button class="danger" onclick="resetAll()">Reset All</button>
-            <div class="game-card">
-                <h3>Record Match Result</h3>
-
-                <input id="matchGameId" placeholder="Event ID">
-                <input id="winnerInput" placeholder="Winner username">
-                <input id="playersInput" placeholder="Players (comma separated)">
-                <input id="scoreInput" placeholder="Score (e.g. 11-7)">
-
-                <button class="primary" onclick="recordResult()">Submit Result</button>
-            </div>
-            <div id="gamesList"></div>
-
-            <h2>Leaderboard</h2>
-            <div id="leaderboard"></div>
-
-            <h2>Match History</h2>
-            <div id="history"></div>
-
-            <h2>Event Chat</h2>
-            <div id="chatBox"></div>
-            <input id="chatInput" placeholder="Type message...">
-            <button onclick="sendMessage()">Send</button>
-        </div>
-
-        <div id="create" class="page">
-            <h2>Create Event</h2>
-            <input id="location" placeholder="Location">
-            <input id="time" type="datetime-local">
-            <button class="primary" onclick="createGame()">Create</button>
-        </div>
-
-        <div id="profile" class="page">
-            <h2>Profile</h2>
-            <p id="userDisplay"></p>
-            <input id="usernameInput" placeholder="Enter name">
-            <button onclick="login()">Sign In</button>
-            <button onclick="logout()">Sign Out</button>
-        </div>
-
+<div id="home" class="page active-page">
+    <div class="hero">
+        <h1>Find Your Next <span style="color:#1f8f5f;">Pickleball Game</span></h1>
+        <p>Connect, play, and track your matches.</p>
+        <button class="primary" onclick="switchPage('browse')">Browse Games</button>
     </div>
+</div>
 
-    <script>
+<div id="browse" class="page">
+    <h2>Events</h2>
+    <button class="danger" onclick="resetAll()">Reset All</button>
 
-        const API = "https://pickleballpopup.onrender.com/api";
-        let username = localStorage.getItem("username");
-        let currentChatGame = null;
+    <div id="gamesList"></div>
 
-        function switchPage(p) {
-            document.querySelectorAll(".page").forEach(x => x.classList.remove("active-page"));
-            document.getElementById(p).classList.add("active-page");
+    <h2>Leaderboard</h2>
+    <div id="leaderboard"></div>
 
-            if (p === "browse") {
-                loadGames();
-                loadLeaderboard();
-                loadHistory();
-            }
-        }
+    <h2>Match History</h2>
+    <div id="history"></div>
 
-        function login() {
-            const input = document.getElementById("usernameInput").value.toLowerCase();
-            username = input;
-            localStorage.setItem("username", username);
-            document.getElementById("userDisplay").innerText = username;
-        }
+    <h2>Event Chat</h2>
+    <div id="chatBox"></div>
+    <input id="chatInput" placeholder="Type message...">
+    <button onclick="sendMessage()">Send</button>
+</div>
 
-        function logout() {
-            localStorage.removeItem("username");
-            username = null;
-            document.getElementById("userDisplay").innerText = "";
-        }
+<div id="create" class="page">
+    <h2>Create Event</h2>
+    <input id="location" placeholder="Location">
+    <input id="time" type="datetime-local">
+    <button class="primary" onclick="createGame()">Create</button>
+</div>
 
-        /* LOAD EVENTS */
-        async function loadGames() {
-            const res = await fetch(API + "/games");
-            const games = await res.json();
+<div id="profile" class="page">
+    <h2>Profile</h2>
+    <p id="userDisplay"></p>
+    <input id="usernameInput" placeholder="Enter name">
+    <button onclick="login()">Sign In</button>
+    <button onclick="logout()">Sign Out</button>
+</div>
 
-            const container = document.getElementById("gamesList");
-            container.innerHTML = "";
+</div>
 
-            for (let game of games) {
-                const playersRes = await fetch(API + `/games/${game.GID}/players`);
-                const players = await playersRes.json();
+<script>
 
-                const names = players.map(p => p.Username.toLowerCase());
-                const isCreator = game.CreatedBy && username && game.CreatedBy.toLowerCase() === username;
+const API = "https://pickleballpopup.onrender.com/api";
+let username = localStorage.getItem("username");
+let currentChatGame = null;
+let playCounts = {};
 
-                const div = document.createElement("div");
-                div.className = "game-card";
+/* PAGE NAV */
+function switchPage(p){
+    document.querySelectorAll(".page").forEach(x=>x.classList.remove("active-page"));
+    document.getElementById(p).classList.add("active-page");
 
-                div.innerHTML = `
-        <h3>${game.Location}</h3>
-        <p>${new Date(game.GameTime).toLocaleString()}</p>
+    if(p==="browse"){
+        loadGames();
+        loadLeaderboard();
+        loadHistory();
+    }
+}
 
-        <p>Players (${names.length}): ${names.join(", ")}</p>
+/* AUTH */
+function login(){
+    const input=document.getElementById("usernameInput").value.toLowerCase();
+    username=input;
+    localStorage.setItem("username",username);
+    document.getElementById("userDisplay").innerText=username;
+}
 
-        ${username && !names.includes(username) ? `<button onclick="joinGame(${game.GID})">Join</button>` : ""}
-        ${names.includes(username) ? `<button onclick="leaveGame(${game.GID})">Leave</button>` : ""}
+function logout(){
+    localStorage.removeItem("username");
+    username=null;
+    document.getElementById("userDisplay").innerText="";
+}
 
-        ${isCreator ? `<button class="primary" onclick="startSubGame(${game.GID})">Start Game</button>` : ""}
-        ${isCreator ? `<button class="danger" onclick="deleteGame(${game.GID})">Delete</button>` : ""}
-        ${isCreator ? `<button onclick="finishEvent(${game.GID})">Finish Event</button>` : ""}
+/* TEAM + ROTATION */
+function generateMatch(players){
 
-        <button onclick="openChat(${game.GID})">Open Chat</button>
+    players.forEach(p => {
+        if(!playCounts[p]) playCounts[p] = 0;
+    });
+
+    players.sort((a,b)=>playCounts[a]-playCounts[b]);
+    players = players.sort(()=>Math.random()-0.5);
+
+    let active = players;
+    let bench = [];
+
+    if(players.length > 4){
+        active = players.slice(0,4);
+        bench = players.slice(4);
+    }
+
+    const team1 = [active[0], active[1]];
+    const team2 = [active[2], active[3]];
+
+    [...team1,...team2].forEach(p=>playCounts[p]++);
+
+    return {team1, team2, bench};
+}
+
+/* START MATCH */
+async function startSubGame(id){
+
+    const res = await fetch(API+`/games/${id}/players`);
+    const players = await res.json();
+
+    const names = players.map(p=>p.Username);
+
+    if(names.length < 4){
+        alert("Need at least 4 players!");
+        return;
+    }
+
+    const {team1, team2, bench} = generateMatch(names);
+
+    const container = document.getElementById("gamesList");
+
+    const matchDiv = document.createElement("div");
+    matchDiv.className = "game-card";
+
+    matchDiv.innerHTML = `
+        <h3>Match Ready</h3>
+        <p><b>Team 1:</b> ${team1.join(", ")}</p>
+        <p><b>Team 2:</b> ${team2.join(", ")}</p>
+        ${bench.length ? `<p><b>Bench:</b> ${bench.join(", ")}</p>` : ""}
+
+        <input id="score-${id}" placeholder="Score (e.g. 11-7)">
+
+        <button class="primary" onclick="submitMatch(${id}, '${team1.join(",")}', '${team2.join(",")}')">Team 1 Wins</button>
+        <button class="primary" onclick="submitMatch(${id}, '${team2.join(",")}', '${team1.join(",")}')">Team 2 Wins</button>
+    `;
+
+    container.prepend(matchDiv);
+}
+
+/* SUBMIT MATCH */
+async function submitMatch(gameId, winnersStr, losersStr){
+
+    const score = document.getElementById(`score-${gameId}`).value;
+
+    if(!score){
+        alert("Enter score!");
+        return;
+    }
+
+    const winners = winnersStr.split(",");
+    const losers = losersStr.split(",");
+
+    const players = [...winners, ...losers];
+
+    await fetch(API+`/games/${gameId}/result`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            winner: winners[0],
+            players,
+            score
+        })
+    });
+
+    alert("Match recorded!");
+
+    loadGames();
+    loadLeaderboard();
+    loadHistory();
+}
+
+/* LOAD EVENTS */
+async function loadGames(){
+
+    const res = await fetch(API+"/games");
+    const games = await res.json();
+
+    const container = document.getElementById("gamesList");
+    container.innerHTML = "";
+
+    for(let game of games){
+
+        const playersRes = await fetch(API+`/games/${game.GID}/players`);
+        const players = await playersRes.json();
+
+        const names = players.map(p=>p.Username);
+
+        const div = document.createElement("div");
+        div.className = "game-card";
+
+        div.innerHTML = `
+            <h3>${game.Location}</h3>
+            <p>${new Date(game.GameTime).toLocaleString()}</p>
+            <p>Status: <b>${game.Status}</b></p>
+
+            <p>Players (${names.length}): ${names.join(", ")}</p>
+
+            <button onclick="joinGame(${game.GID})">Join</button>
+            <button onclick="leaveGame(${game.GID})">Leave</button>
+
+            <button class="primary" onclick="startSubGame(${game.GID})">Start Match</button>
+            <button onclick="openChat(${game.GID})">Chat</button>
         `;
 
-                container.appendChild(div);
-            }
-        }
+        container.appendChild(div);
+    }
+}
 
-        /* CHAT */
-        function openChat(id) {
-            currentChatGame = id;
-            loadChat();
-        }
+/* CHAT */
+function openChat(id){
+    currentChatGame = id;
+    loadChat();
+}
 
-        async function loadChat() {
-            if (!currentChatGame) return;
+async function loadChat(){
+    if(!currentChatGame) return;
 
-            const res = await fetch(API + `/games/${currentChatGame}/chat`);
-            const messages = await res.json();
+    const res = await fetch(API+`/games/${currentChatGame}/chat`);
+    const messages = await res.json();
 
-            document.getElementById("chatBox").innerHTML =
-                messages.map(m => `<div><b>${m.Username}:</b> ${m.Content}</div>`).join("");
-        }
+    document.getElementById("chatBox").innerHTML =
+        messages.map(m=>`<div><b>${m.Username}:</b> ${m.Content}</div>`).join("");
+}
 
-        async function sendMessage() {
-            const input = document.getElementById("chatInput");
-            const content = input.value;
+async function sendMessage(){
+    if(!currentChatGame){
+        alert("Select event chat first!");
+        return;
+    }
 
-            if (!content) return;
+    const input = document.getElementById("chatInput");
 
-            await fetch(API + `/games/${currentChatGame}/chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, content })
-            });
+    await fetch(API+`/games/${currentChatGame}/chat`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({username, content: input.value})
+    });
 
-            input.value = "";
-            loadChat();
-        }
+    input.value="";
+    loadChat();
+}
 
-        /* RESET */
-        async function resetAll() {
-            await fetch(API + "/games/reset", { method: "DELETE" });
-            loadGames();
-            loadLeaderboard();
-            loadHistory();
-        }
+/* OTHER */
+async function resetAll(){
+    await fetch(API+"/games/reset",{method:"DELETE"});
+    loadGames();
+    loadLeaderboard();
+    loadHistory();
+}
 
-        /* CREATE */
-        async function createGame() {
-            const location = document.getElementById("location").value;
-            const time = document.getElementById("time").value;
+async function createGame(){
+    const location=document.getElementById("location").value;
+    const time=document.getElementById("time").value;
 
-            const res = await fetch(API + "/games", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ location, time, username })
-            });
+    await fetch(API+"/games",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({location,time,username})
+    });
 
-            const data = await res.json();
+    loadGames();
+}
 
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
+async function joinGame(id){
+    await fetch(API+`/games/${id}/join`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({username})
+    });
+    loadGames();
+}
 
-            loadGames();
-        }
+async function leaveGame(id){
+    await fetch(API+`/games/${id}/leave`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({username})
+    });
+    loadGames();
+}
 
-        async function joinGame(id) {
-            await fetch(API + `/games/${id}/join`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username })
-            });
-            loadGames();
-        }
+/* LEADERBOARD */
+async function loadLeaderboard(){
+    const res = await fetch(API+"/games/leaderboard");
+    const data = await res.json();
 
-        async function leaveGame(id) {
-            await fetch(API + `/games/${id}/leave`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username })
-            });
-            loadGames();
-        }
+    document.getElementById("leaderboard").innerHTML =
+        data.map(p=>`<div class="leaderboard-card">${p.Username} - ${p.wins}</div>`).join("");
+}
 
-        async function deleteGame(id) {
-            await fetch(API + `/games/${id}/delete`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username })
-            });
-            loadGames();
-        }
+/* HISTORY */
+async function loadHistory(){
+    const res = await fetch(API+"/games/history");
+    const games = await res.json();
 
-        async function finishEvent(id) {
-            await fetch(API + `/games/${id}/finish`, {
-                method: "POST"
-            });
-
-            loadGames();
-            loadLeaderboard();
-        }
-
-        async function recordResult() {
-            const gameId = document.getElementById("matchGameId").value;
-            const winner = document.getElementById("winnerInput").value.toLowerCase();
-            const players = document.getElementById("playersInput").value
-                .split(",")
-                .map(p => p.trim().toLowerCase());
-            const score = document.getElementById("scoreInput").value;
-
-            if (!gameId || !winner || players.length === 0 || !score) {
-                alert("Fill out all fields!");
-                return;
-            }
-
-            await fetch(API + `/games/${gameId}/result`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ winner, players, score })
-            });
-
-            alert("Match recorded!");
-
-            loadGames();
-            loadLeaderboard();
-            loadHistory();
-        }
-
-        /* LEADERBOARD */
-        async function loadLeaderboard() {
-            const res = await fetch(API + "/games");
-            const games = await res.json();
-
-            const completed = games.filter(g => g.Status === "completed");
-
-            if (completed.length === 0) {
-                document.getElementById("leaderboard").innerHTML =
-                    "<p>Leaderboard appears after events are completed.</p>";
-                return;
-            }
-
-            const lb = await fetch(API + "/games/leaderboard");
-            const data = await lb.json();
-
-            document.getElementById("leaderboard").innerHTML =
-                data.map(p => `<div class="leaderboard-card">${p.Username} - ${p.wins}</div>`).join("");
-        }
-
-        /* HISTORY */
-        async function loadHistory() {
-            const res = await fetch(API + "/games/history");
-            const games = await res.json();
-
-            document.getElementById("history").innerHTML =
-                games.map(g => `
+    document.getElementById("history").innerHTML =
+        games.map(g=>`
         <div class="history-card">
             <b>${g.location}</b><br>
             ${g.players.join(", ")}<br>
             Winner: <span style="color:green">${g.winner}</span><br>
-Score: ${g.score || "N/A"}
+            Score: ${g.score || "N/A"}
         </div>
         `).join("");
-        }
+}
 
-    </script>
+</script>
 
 </body>
-
 </html>
