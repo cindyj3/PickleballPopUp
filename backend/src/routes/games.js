@@ -137,13 +137,12 @@ router.get("/:id/subgames", async (req, res) => {
   try {
     const { rows } = await db.query(`
       SELECT 
-        SubGames.SGID,
-        SubGames.Team1Score,
-        SubGames.Team2Score,
-        SubGames.CreatedAt,
-        sgp.IsWinner,
-        sgp.Team,
-        Users.Username
+        SubGames.SGID as sgid,
+        SubGames.Team1Score as team1score,
+        SubGames.Team2Score as team2score,
+        SubGames.CreatedAt as createdat,
+        sgp.Team as team,
+        Users.Username as username
       FROM SubGames
       JOIN SubGamePlayers sgp ON SubGames.SGID = sgp.SGID
       JOIN Users ON sgp.UID = Users.UID
@@ -151,8 +150,8 @@ router.get("/:id/subgames", async (req, res) => {
       ORDER BY SubGames.CreatedAt ASC
     `, [req.params.id]);
 
-    const grouped = {};
-    rows.forEach(row => {
+    const grouped: Record<number, any> = {};
+    rows.forEach((row: any) => {
       const key = row.sgid;
       if (!grouped[key]) {
         grouped[key] = {
@@ -164,12 +163,12 @@ router.get("/:id/subgames", async (req, res) => {
           team2: [],
         };
       }
-      if (row.team === 1) grouped[key].team1.push(row.Username);
-      if (row.team === 2) grouped[key].team2.push(row.Username);
+      if (row.team === 1) grouped[key].team1.push(row.username);
+      if (row.team === 2) grouped[key].team2.push(row.username);
     });
 
     res.json(Object.values(grouped));
-  } catch (e) {
+  } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
