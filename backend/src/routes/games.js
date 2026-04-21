@@ -51,39 +51,41 @@ router.get("/history", async (req, res) => {
   try {
     const { rows } = await db.query(`
       SELECT 
-        Games.GID,
-        Games.Location,
-        Games.GameTime,
-        SubGames.SGID,
-        SubGames.Team1Score,
-        SubGames.Team2Score,
-        SubGames.CreatedAt as SubGameTime,
-        sgp.IsWinner,
-        Users.Username
+        Games.GID as gid,
+        Games.Location as location,
+        Games.GameTime as gametime,
+        SubGames.SGID as sgid,
+        SubGames.Team1Score as team1score,
+        SubGames.Team2Score as team2score,
+        SubGames.CreatedAt as createdat,
+        sgp.IsWinner as iswinner,
+        sgp.Team as team,
+        Users.Username as username
       FROM Games
       JOIN SubGames ON Games.GID = SubGames.GID
       JOIN SubGamePlayers sgp ON SubGames.SGID = sgp.SGID
       JOIN Users ON sgp.UID = Users.UID
+      WHERE Games.Status = 'completed'
       ORDER BY SubGames.CreatedAt DESC
     `);
 
     const grouped = {};
-    rows.forEach(row => {
+    rows.forEach((row) => {
       const key = row.sgid;
       if (!grouped[key]) {
         grouped[key] = {
           sgid: row.sgid,
-          gid: row.GID,
-          location: row.Location,
-          time: row.SubGameTime,
+          gid: row.gid,
+          location: row.location,
+          time: row.createdat,
           team1score: row.team1score,
           team2score: row.team2score,
           players: [],
           winners: [],
         };
       }
-      grouped[key].players.push(row.Username);
-      if (row.iswinner) grouped[key].winners.push(row.Username);
+      if (row.username) grouped[key].players.push(row.username);
+      if (row.iswinner) grouped[key].winners.push(row.username);
     });
 
     res.json(Object.values(grouped));

@@ -72,8 +72,8 @@ export default function GameHistory() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {filtered.map((game, idx) => {
-          const iWon = game.winner === username;
-          const iPlayed = game.players?.includes(username ?? '');
+          const iPlayed = game.players?.filter(Boolean).includes(username ?? '');
+          const iWon = game.winners?.includes(username ?? '');
           const gameTime = game.time ?? game.GameTime;
           const gameLocation = game.location ?? game.Location ?? '';
           return (
@@ -92,17 +92,24 @@ export default function GameHistory() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>{gameLocation}</div>
                 <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
-                  {formatTime(gameTime)} · {game.players?.join(', ')}
+  {formatTime(gameTime)} · {game.players?.filter(Boolean).join(', ')}
+</div>
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                {game.score && <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 22, fontWeight: 700 }}>{game.score}</div>}
-                {game.winner && <div style={{ fontSize: 12, color: 'var(--green-dark)', fontWeight: 600 }}>🏆 {game.winner}</div>}
+                {(game.team1score !== undefined) && (
+  <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 22, fontWeight: 700 }}>
+    {game.team1score} — {game.team2score}
+  </div>
+)}
+{game.winners?.length > 0 && (
+  <div style={{ fontSize: 12, color: 'var(--green-dark)', fontWeight: 600 }}>🏆 {game.winners.join(' & ')}</div>
+)}
               </div>
             </div>
-          );
+      );
         })}
-      </div>
     </div>
+    </div >
   );
 }
