@@ -151,7 +151,9 @@ router.get("/leaderboard", (req, res) => {
       COUNT(GamePlayers.GID) as totalGames,
       SUM(CASE WHEN GamePlayers.IsWinner = 1 THEN 1 ELSE 0 END) as wins
     FROM Users
-    LEFT JOIN GamePlayers ON Users.UID = GamePlayers.UID
+    LEFT JOIN GamePlayers 
+    ON Users.UID = GamePlayers.UID 
+    AND GamePlayers.IsWinner IS NOT NULL
     GROUP BY Users.UID
     ORDER BY wins DESC
   `).all();
@@ -172,6 +174,7 @@ router.get("/history", (req, res) => {
     FROM Games
     JOIN GamePlayers ON Games.GID = GamePlayers.GID
     JOIN Users ON GamePlayers.UID = Users.UID
+    WHERE GamePlayers.IsWinner IS NOT NULL
     ORDER BY Games.GameTime DESC
   `).all();
 
@@ -188,7 +191,9 @@ router.get("/history", (req, res) => {
       };
     }
 
-    grouped[row.GID].players.push(row.Username);
+    if (row.IsWinner !== null) {
+      grouped[row.GID].players.push(row.Username);
+    }
 
     if (row.IsWinner === 1) {
       grouped[row.GID].winner = row.Username;
