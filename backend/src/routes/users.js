@@ -3,38 +3,31 @@ const db = require("../db");
 
 const router = express.Router();
 
-/* GET all users */
-router.get("/", (req, res) => {
-  const users = db
-    .prepare("SELECT * FROM Users ORDER BY CreatedAt DESC")
-    .all();
-
-  res.json(users);
+/* GET ALL USERS */
+router.get("/", async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT * FROM Users ORDER BY CreatedAt DESC");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-/* CREATE or GET user (safe, no duplicates) */
-router.post("/", (req, res) => {
-  let { username } = req.body;
-
-  if (!username) {
-    return res.status(400).json({ error: "username required" });
-  }
-
-  // normalize username
-  username = username.trim().toLowerCase();
-
+/* CREATE OR GET USER */
+router.post("/", async (req, res) => {
   try {
-    // insert safely (won’t crash if duplicate)
-    db.prepare("INSERT OR IGNORE INTO Users (Username) VALUES (?)")
-      .run(username);
+    let { username } = req.body;
+    if (!username) return res.status(400).json({ error: "username required" });
 
-    // always fetch the user
-    const user = db
-      .prepare("SELECT * FROM Users WHERE Username = ?")
-      .get(username);
+    username = username.trim().toLowerCase();
 
-    res.json(user);
+    await db.query(
+      "INSERT INTO Users (Username) VALUES ($1) ON CONFLICT (Username) DO NOTHING",
+      [username]
+    );
 
+    const { rows } = await db.query("SELECT * FROM Users WHERE Username = $1", [username]);
+    res.json(rows[0]);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

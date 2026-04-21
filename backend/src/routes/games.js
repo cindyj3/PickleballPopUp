@@ -3,281 +3,268 @@ const db = require("../db");
 
 const router = express.Router();
 
-/* GET EVENTS */
-router.get("/", (req, res) => {
-  const games = db.prepare(
-    "SELECT * FROM Games ORDER BY GameTime ASC"
-  ).all();
-
-  res.json(games);
+/* GET ALL EVENTS */
+router.get("/", async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT * FROM Games ORDER BY GameTime DESC");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 /* GET USERS */
-router.get("/users", (req, res) => {
-  const users = db.prepare("SELECT Username FROM Users").all();
-  res.json(users);
+router.get("/users", async (req, res) => {
+  try {
+    const { rows } = await db.query("SELECT Username FROM Users");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* LEADERBOARD - must be before /:id routes */
+router.get("/leaderboard", async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT 
+        Users.Username,
+        COUNT(GamePlayers.GID) as "totalGames",
+        SUM(CASE WHEN GamePlayers.IsWinner = true THEN 1 ELSE 0 END) as wins
+      FROM Users
+      LEFT JOIN GamePlayers 
+        ON Users.UID = GamePlayers.UID 
+        AND GamePlayers.IsWinner IS NOT NULL
+      GROUP BY Users.UID, Users.Username
+      ORDER BY wins DESC
+    `);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* HISTORY - must be before /:id routes */
+router.get("/history", async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT 
+        Games.GID,
+        Games.Location,
+        Games.GameTime,
+        GamePlayers.IsWinner,
+        GamePlayers.Score,
+        Users.Username
+      FROM Games
+      JOIN GamePlayers ON Games.GID = GamePlayers.GID
+      JOIN Users ON GamePlayers.UID = Users.UID
+      WHERE GamePlayers.IsWinner IS NOT NULL
+      ORDER BY Games.GameTime DESC
+    `);
+
+    const grouped = {};
+    rows.forEach(row => {
+      if (!grouped[row.GID]) {
+        grouped[row.GID] = {
+          location: row.Location,
+          time: row.GameTime,
+          players: [],
+          winner: null,
+          score: null,
+        };
+      }
+      if (row.IsWinner !== null) grouped[row.GID].players.push(row.Username);
+      if (row.IsWinner === true) grouped[row.GID].winner = row.Username;
+      if (row.Score) grouped[row.GID].score = row.Score;
+    });
+
+    res.json(Object.values(grouped));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 /* CREATE EVENT */
-router.post("/", (req, res) => {
-  let { location, time, username } = req.body;
+router.post("/", async (req, res) => {
+  try {
+    let { location, time, username } = req.body;
+    if (!location || !time) return res.status(400).json({ error: "Missing fields" });
 
-  if (!location || !time) {
-    return res.json({ error: "Missing fields" });
+    location = location.trim().toLowerCase();
+    username = username?.trim().toLowerCase();
+
+    const existing = await db.query(
+      "SELECT * FROM Games WHERE Location = $1 AND GameTime = $2",
+      [location, time]
+    );
+    if (existing.rows.length > 0) return res.status(400).json({ error: "Event already exists!" });
+
+    await db.query(
+      "INSERT INTO Games (Location, GameTime, Status, CreatedBy) VALUES ($1, $2, 'scheduled', $3)",
+      [location, time, username]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-
-  location = location.trim().toLowerCase();
-  username = username?.trim().toLowerCase();
-
-  // CHECK DUPLICATE
-  const existing = db.prepare(`
-    SELECT * FROM Games
-    WHERE Location = ? AND GameTime = ?
-  `).get(location, time);
-
-  if (existing) {
-    return res.status(400).json({ error: "Event already exists!" });
-  }
-
-  db.prepare(`
-    INSERT INTO Games (Location, GameTime, Status, CreatedBy)
-    VALUES (?, ?, 'scheduled', ?)
-  `).run(location, time, username);
-
-  res.json({ success: true });
 });
 
-/* GET PLAYERS */
-router.get("/:id/players", (req, res) => {
-  const players = db.prepare(`
-    SELECT Users.Username, GamePlayers.IsWinner
-    FROM GamePlayers
-    JOIN Users ON GamePlayers.UID = Users.UID
-    WHERE GamePlayers.GID = ?
-  `).all(req.params.id);
-
-  res.json(players);
+/* GET PLAYERS FOR EVENT */
+router.get("/:id/players", async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT Users.Username, GamePlayers.IsWinner
+      FROM GamePlayers
+      JOIN Users ON GamePlayers.UID = Users.UID
+      WHERE GamePlayers.GID = $1
+    `, [req.params.id]);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 /* JOIN EVENT */
-router.post("/:id/join", (req, res) => {
-  const username = req.body.username.trim().toLowerCase();
-  const gameId = req.params.id;
+router.post("/:id/join", async (req, res) => {
+  try {
+    const username = req.body.username.trim().toLowerCase();
+    const gameId = req.params.id;
 
-  let user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
+    await db.query("INSERT INTO Users (Username) VALUES ($1) ON CONFLICT (Username) DO NOTHING", [username]);
+    const { rows } = await db.query("SELECT * FROM Users WHERE Username = $1", [username]);
+    const user = rows[0];
 
-  if (!user) {
-    db.prepare("INSERT INTO Users (Username) VALUES (?)").run(username);
-    user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
+    await db.query(
+      "INSERT INTO GamePlayers (GID, UID) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [gameId, user.uid]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-
-  const exists = db.prepare(
-    "SELECT * FROM GamePlayers WHERE GID = ? AND UID = ?"
-  ).get(gameId, user.UID);
-
-  if (!exists) {
-    db.prepare("INSERT INTO GamePlayers (GID, UID) VALUES (?, ?)")
-      .run(gameId, user.UID);
-  }
-
-  res.json({ success: true });
 });
 
 /* LEAVE EVENT */
-router.post("/:id/leave", (req, res) => {
-  const username = req.body.username.trim().toLowerCase();
-  const gameId = req.params.id;
+router.post("/:id/leave", async (req, res) => {
+  try {
+    const username = req.body.username.trim().toLowerCase();
+    const gameId = req.params.id;
 
-  const user = db.prepare("SELECT * FROM Users WHERE Username = ?").get(username);
-
-  if (user) {
-    db.prepare("DELETE FROM GamePlayers WHERE GID = ? AND UID = ?")
-      .run(gameId, user.UID);
+    const { rows } = await db.query("SELECT * FROM Users WHERE Username = $1", [username]);
+    if (rows.length > 0) {
+      await db.query("DELETE FROM GamePlayers WHERE GID = $1 AND UID = $2", [gameId, rows[0].uid]);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-
-  res.json({ success: true });
 });
 
 /* DELETE EVENT */
-router.post("/:id/delete", (req, res) => {
-  const username = req.body.username.trim().toLowerCase();
-  const gameId = req.params.id;
+router.post("/:id/delete", async (req, res) => {
+  try {
+    const username = req.body.username.trim().toLowerCase();
+    const gameId = req.params.id;
 
-  const game = db.prepare("SELECT * FROM Games WHERE GID = ?").get(gameId);
+    const { rows } = await db.query("SELECT * FROM Games WHERE GID = $1", [gameId]);
+    if (rows.length === 0) return res.status(404).json({ error: "Game not found" });
+    if (rows[0].createdby !== username) return res.status(403).json({ error: "Not authorized" });
 
-  if (!game) return res.json({ error: "Game not found" });
-  if (game.CreatedBy !== username) return res.json({ error: "Not authorized" });
-
-  db.prepare("DELETE FROM GamePlayers WHERE GID = ?").run(gameId);
-  db.prepare("DELETE FROM Games WHERE GID = ?").run(gameId);
-
-  res.json({ success: true });
-});
-
-/* RECORD SUB-GAME (MATCH) */
-router.post("/:id/result", (req, res) => {
-  const { winner, score, players } = req.body;
-  const gameId = req.params.id;
-
-  if (!winner || !players || !score) {
-    return res.json({ error: "Missing data" });
+    await db.query("DELETE FROM GamePlayers WHERE GID = $1", [gameId]);
+    await db.query("DELETE FROM Games WHERE GID = $1", [gameId]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-
-  players.forEach(name => {
-    const user = db.prepare("SELECT * FROM Users WHERE Username = ?")
-      .get(name.toLowerCase());
-
-    if (user) {
-      db.prepare(`
-        INSERT INTO GamePlayers (GID, UID, Score, IsWinner)
-        VALUES (?, ?, ?, ?)
-      `).run(
-        gameId,
-        user.UID,
-        score,
-        name === winner ? 1 : 0
-      );
-    }
-  });
-
-  res.json({ success: true });
 });
 
-/* LEADERBOARD */
-router.get("/leaderboard", (req, res) => {
-  const data = db.prepare(`
-    SELECT 
-      Users.Username,
-      COUNT(GamePlayers.GID) as totalGames,
-      SUM(CASE WHEN GamePlayers.IsWinner = 1 THEN 1 ELSE 0 END) as wins
-    FROM Users
-    LEFT JOIN GamePlayers 
-    ON Users.UID = GamePlayers.UID 
-    AND GamePlayers.IsWinner IS NOT NULL
-    GROUP BY Users.UID
-    ORDER BY wins DESC
-  `).all();
+/* RECORD RESULT */
+router.post("/:id/result", async (req, res) => {
+  try {
+    const { winner, score, players } = req.body;
+    const gameId = req.params.id;
 
-  res.json(data);
-});
+    if (!winner || !players || !score) return res.status(400).json({ error: "Missing data" });
 
-/* HISTORY */
-router.get("/history", (req, res) => {
-  const rows = db.prepare(`
-    SELECT 
-      Games.GID,
-      Games.Location,
-      Games.GameTime,
-      GamePlayers.IsWinner,
-      GamePlayers.Score,
-      Users.Username
-    FROM Games
-    JOIN GamePlayers ON Games.GID = GamePlayers.GID
-    JOIN Users ON GamePlayers.UID = Users.UID
-    WHERE GamePlayers.IsWinner IS NOT NULL
-    ORDER BY Games.GameTime DESC
-  `).all();
-
-  const grouped = {};
-
-  rows.forEach(row => {
-    if (!grouped[row.GID]) {
-      grouped[row.GID] = {
-        location: row.Location,
-        time: row.GameTime,
-        players: [],
-        winner: null,
-        score: null
-      };
+    for (const name of players) {
+      const { rows } = await db.query("SELECT * FROM Users WHERE Username = $1", [name.toLowerCase()]);
+      if (rows.length > 0) {
+        const user = rows[0];
+        await db.query(
+          `INSERT INTO GamePlayers (GID, UID, Score, IsWinner)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (GID, UID) DO UPDATE SET Score = $3, IsWinner = $4`,
+          [gameId, user.uid, score, name === winner]
+        );
+      }
     }
-
-    if (row.IsWinner !== null) {
-      grouped[row.GID].players.push(row.Username);
-    }
-
-    if (row.IsWinner === 1) {
-      grouped[row.GID].winner = row.Username;
-    }
-    if (row.Score) {
-      grouped[row.GID].score = row.Score;
-    }
-
-  });
-
-  res.json(Object.values(grouped));
-});
-
-
-router.delete("/reset", (req, res) => {
-  db.prepare("DELETE FROM GamePlayers").run();
-  db.prepare("DELETE FROM Games").run();
-  db.prepare("DELETE FROM Messages").run();
-  db.prepare("DELETE FROM Conversations").run();
-  db.prepare("DELETE FROM ConversationParticipants").run();
-
-  res.json({ message: "Reset complete" });
-});
-
-/* CREATE OR GET CONVERSATION FOR EVENT */
-router.get("/:id/chat", (req, res) => {
-  const gameId = req.params.id;
-
-  let convo = db.prepare(`
-    SELECT * FROM Conversations WHERE CID = ?
-  `).get(gameId);
-
-  if (!convo) {
-    db.prepare(`
-      INSERT INTO Conversations (CID) VALUES (?)
-    `).run(gameId);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-
-  const messages = db.prepare(`
-    SELECT Messages.Content, Messages.SentAt, Users.Username
-    FROM Messages
-    JOIN Users ON Messages.SenderUID = Users.UID
-    WHERE Messages.CID = ?
-    ORDER BY Messages.SentAt ASC
-  `).all(gameId);
-
-  res.json(messages);
-});
-
-/* SEND MESSAGE */
-router.post("/:id/chat", (req, res) => {
-  const { username, content } = req.body;
-  const gameId = req.params.id;
-
-  if (!content) return res.json({ error: "Empty message" });
-
-  let user = db.prepare("SELECT * FROM Users WHERE Username = ?")
-    .get(username.toLowerCase());
-
-  if (!user) {
-    db.prepare("INSERT INTO Users (Username) VALUES (?)")
-      .run(username.toLowerCase());
-    user = db.prepare("SELECT * FROM Users WHERE Username = ?")
-      .get(username.toLowerCase());
-  }
-
-  db.prepare(`
-    INSERT INTO Messages (CID, SenderUID, Content)
-    VALUES (?, ?, ?)
-  `).run(gameId, user.UID, content);
-
-  res.json({ success: true });
 });
 
 /* FINISH EVENT */
-router.post("/:id/finish", (req, res) => {
-  const gameId = req.params.id;
+router.post("/:id/finish", async (req, res) => {
+  try {
+    await db.query("UPDATE Games SET Status = 'completed' WHERE GID = $1", [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
-  db.prepare(`
-    UPDATE Games SET Status = 'completed'
-    WHERE GID = ?
-  `).run(gameId);
+/* GET CHAT */
+router.get("/:id/chat", async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    await db.query("INSERT INTO Conversations (CID) VALUES ($1) ON CONFLICT DO NOTHING", [gameId]);
+    const { rows } = await db.query(`
+      SELECT Messages.Content, Messages.SentAt, Users.Username
+      FROM Messages
+      JOIN Users ON Messages.SenderUID = Users.UID
+      WHERE Messages.CID = $1
+      ORDER BY Messages.SentAt ASC
+    `, [gameId]);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
-  res.json({ success: true });
+/* SEND CHAT */
+router.post("/:id/chat", async (req, res) => {
+  try {
+    const { username, content } = req.body;
+    const gameId = req.params.id;
+
+    if (!content) return res.status(400).json({ error: "Empty message" });
+
+    await db.query("INSERT INTO Users (Username) VALUES ($1) ON CONFLICT (Username) DO NOTHING", [username.toLowerCase()]);
+    const { rows } = await db.query("SELECT * FROM Users WHERE Username = $1", [username.toLowerCase()]);
+    const user = rows[0];
+
+    await db.query(
+      "INSERT INTO Messages (CID, SenderUID, Content) VALUES ($1, $2, $3)",
+      [gameId, user.uid, content]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* RESET */
+router.delete("/reset", async (req, res) => {
+  try {
+    await db.query("DELETE FROM GamePlayers");
+    await db.query("DELETE FROM Games");
+    await db.query("DELETE FROM Messages");
+    await db.query("DELETE FROM Conversations");
+    res.json({ message: "Reset complete" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;
