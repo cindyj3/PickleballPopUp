@@ -5,284 +5,392 @@
     <title>Pop-Up Pickleball</title>
 
     <style>
-        body { font-family: -apple-system; margin:0; background:#f6f8f7; }
-        .navbar { display:flex; justify-content:space-between; padding:16px 40px; background:white; border-bottom:1px solid #eee;}
-        .logo { font-weight:bold; color:#1f8f5f;}
-        .nav-links span { margin-left:20px; cursor:pointer; color:#666;}
-        .nav-links span.active { color:#1f8f5f; font-weight:600;}
-        .hero { text-align:center; padding:60px 20px; background:#e8f7ef; border-radius:20px; margin:30px auto;}
-        button { padding:10px 16px; border-radius:10px; border:none; cursor:pointer;}
-        .primary { background:#1f8f5f; color:white;}
-        .danger { background:#e74c3c; color:white;}
-        .container { max-width:900px; margin:auto;}
-        .game-card, .leaderboard-card, .history-card { background:white; padding:12px; margin:10px 0; border-radius:10px;}
-        input { width:100%; padding:10px; margin-top:10px; border-radius:10px; border:1px solid #ddd;}
-        .page { display:none;}
-        .active-page { display:block;}
+        body {
+            font-family: -apple-system;
+            margin: 0;
+            background: #f6f8f7;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 40px;
+            background: white;
+            border-bottom: 1px solid #eee;
+        }
+
+        .logo {
+            font-weight: bold;
+            color: #1f8f5f;
+        }
+
+        .nav-links span {
+            margin-left: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 60px 20px;
+            background: #e8f7ef;
+            border-radius: 20px;
+            margin: 30px auto;
+        }
+
+        button {
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            margin: 3px;
+        }
+
+        .primary {
+            background: #1f8f5f;
+            color: white;
+        }
+
+        .danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .game-card,
+        .leaderboard-card,
+        .history-card {
+            background: white;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 10px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .active-page {
+            display: block;
+        }
+
+        #chatBox {
+            height: 200px;
+            overflow: auto;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+        }
     </style>
 </head>
 
 <body>
 
-<div class="navbar">
-    <div class="logo">Pop-Up</div>
-    <div class="nav-links">
-        <span id="navUser"></span>
-        <span onclick="switchPage('home')">Home</span>
-        <span onclick="switchPage('browse')">Browse</span>
-        <span onclick="switchPage('create')">Create</span>
-        <span onclick="switchPage('profile')">Profile</span>
+    <div class="navbar">
+        <div class="logo">Pop-Up</div>
+        <div class="nav-links">
+            <span id="navUser"></span>
+            <span onclick="switchPage('home')">Home</span>
+            <span onclick="switchPage('browse')">Browse</span>
+            <span onclick="switchPage('create')">Create</span>
+            <span onclick="switchPage('profile')">Profile</span>
+        </div>
     </div>
-</div>
 
-<div class="container">
+    <div class="container">
 
-<div id="home" class="page active-page">
-    <div class="hero">
-        <h1>Pickleball Events</h1>
-        <button class="primary" onclick="switchPage('browse')">Browse</button>
+        <div id="home" class="page active-page">
+            <div class="hero">
+                <h1>Pickleball Events</h1>
+                <button class="primary" onclick="switchPage('browse')">Browse</button>
+            </div>
+        </div>
+
+        <div id="browse" class="page">
+            <h2>Events</h2>
+            <button class="danger" onclick="resetAll()">Reset All</button>
+            <div class="game-card">
+                <h3>Record Match Result</h3>
+
+                <input id="matchGameId" placeholder="Event ID">
+                <input id="winnerInput" placeholder="Winner username">
+                <input id="playersInput" placeholder="Players (comma separated)">
+                <input id="scoreInput" placeholder="Score (e.g. 11-7)">
+
+                <button class="primary" onclick="recordResult()">Submit Result</button>
+            </div>
+            <div id="gamesList"></div>
+
+            <h2>Leaderboard</h2>
+            <div id="leaderboard"></div>
+
+            <h2>Match History</h2>
+            <div id="history"></div>
+
+            <h2>Event Chat</h2>
+            <div id="chatBox"></div>
+            <input id="chatInput" placeholder="Type message...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+
+        <div id="create" class="page">
+            <h2>Create Event</h2>
+            <input id="location" placeholder="Location">
+            <input id="time" type="datetime-local">
+            <button class="primary" onclick="createGame()">Create</button>
+        </div>
+
+        <div id="profile" class="page">
+            <h2>Profile</h2>
+            <p id="userDisplay"></p>
+            <input id="usernameInput" placeholder="Enter name">
+            <button onclick="login()">Sign In</button>
+            <button onclick="logout()">Sign Out</button>
+        </div>
+
     </div>
-</div>
 
-<div id="browse" class="page">
-    <h2>Events</h2>
-    <div id="gamesList"></div>
+    <script>
 
-    <h2>Leaderboard</h2>
-    <div id="leaderboard"></div>
+        const API = "https://pickleballpopup.onrender.com/api";
+        let username = localStorage.getItem("username");
+        let currentChatGame = null;
 
-    <h2>Match History</h2>
-    <div id="history"></div>
-</div>
+        function switchPage(p) {
+            document.querySelectorAll(".page").forEach(x => x.classList.remove("active-page"));
+            document.getElementById(p).classList.add("active-page");
 
-<div id="create" class="page">
-    <h2>Create Event</h2>
-    <input id="location" placeholder="Location">
-    <input id="time" type="datetime-local">
-    <button class="primary" onclick="createGame()">Create</button>
-</div>
+            if (p === "browse") {
+                loadGames();
+                loadLeaderboard();
+                loadHistory();
+            }
+        }
 
-<div id="profile" class="page">
-    <h2>Profile</h2>
-    <p id="userDisplay"></p>
-    <input id="usernameInput" placeholder="Enter name">
-    <button onclick="login()">Sign In</button>
-    <button onclick="logout()">Sign Out</button>
-</div>
+        function login() {
+            const input = document.getElementById("usernameInput").value.toLowerCase();
+            username = input;
+            localStorage.setItem("username", username);
+            document.getElementById("userDisplay").innerText = username;
+        }
 
-</div>
+        function logout() {
+            localStorage.removeItem("username");
+            username = null;
+            document.getElementById("userDisplay").innerText = "";
+        }
 
-<!-- 🔥 MATCH MODAL -->
-<div id="matchModal" style="
-display:none;
-position:fixed;
-top:0; left:0;
-width:100%; height:100%;
-background:rgba(0,0,0,0.5);
-justify-content:center;
-align-items:center;
-">
-<div style="background:white;padding:20px;border-radius:10px;text-align:center;">
-    <h3>Match</h3>
+        /* LOAD EVENTS */
+        async function loadGames() {
+            const res = await fetch(API + "/games");
+            const games = await res.json();
 
-    <p id="team1"></p>
-    <p id="team2"></p>
+            const container = document.getElementById("gamesList");
+            container.innerHTML = "";
 
-    <input id="scoreInput" placeholder="Enter score (e.g. 11-7)">
+            for (let game of games) {
+                const playersRes = await fetch(API + `/games/${game.GID}/players`);
+                const players = await playersRes.json();
 
-    <br><br>
+                const names = players.map(p => p.Username.toLowerCase());
+                const isCreator = game.CreatedBy && username && game.CreatedBy.toLowerCase() === username;
 
-    <button class="primary" onclick="selectWinner(1)">Team 1 Wins</button>
-    <button class="primary" onclick="selectWinner(2)">Team 2 Wins</button>
+                const div = document.createElement("div");
+                div.className = "game-card";
 
-    <br><br>
-    <button onclick="closeModal()">Cancel</button>
-</div>
-</div>
-
-<script>
-
-const API = "https://pickleballpopup.onrender.com/api";
-let username = localStorage.getItem("username");
-
-let currentMatch = { eventId:null, team1:[], team2:[] };
-
-function switchPage(p){
-    document.querySelectorAll(".page").forEach(x=>x.classList.remove("active-page"));
-    document.getElementById(p).classList.add("active-page");
-    if(p==="browse"){loadGames(); loadLeaderboard(); loadHistory();}
-}
-
-function login(){
-    const input=document.getElementById("usernameInput").value.toLowerCase();
-    username=input;
-    localStorage.setItem("username",username);
-    document.getElementById("userDisplay").innerText=username;
-}
-
-function logout(){
-    localStorage.removeItem("username");
-    username=null;
-    document.getElementById("userDisplay").innerText="";
-}
-
-/* LOAD EVENTS */
-async function loadGames(){
-    const res=await fetch(API+"/games");
-    const games=await res.json();
-
-    const container=document.getElementById("gamesList");
-    container.innerHTML="";
-
-    for(let game of games){
-        const playersRes=await fetch(API+`/games/${game.GID}/players`);
-        const players=await playersRes.json();
-
-        const names=players.map(p=>p.Username.toLowerCase());
-
-        const isCreator=game.CreatedBy && username && game.CreatedBy.toLowerCase()===username;
-
-        const div=document.createElement("div");
-        div.className="game-card";
-
-        div.innerHTML=`
+                div.innerHTML = `
         <h3>${game.Location}</h3>
         <p>${new Date(game.GameTime).toLocaleString()}</p>
 
         <p>Players (${names.length}): ${names.join(", ")}</p>
 
-        ${username && !names.includes(username) ? `<button onclick="joinGame(${game.GID})">Join</button>`:""}
-        ${names.includes(username) ? `<button onclick="leaveGame(${game.GID})">Leave</button>`:""}
+        ${username && !names.includes(username) ? `<button onclick="joinGame(${game.GID})">Join</button>` : ""}
+        ${names.includes(username) ? `<button onclick="leaveGame(${game.GID})">Leave</button>` : ""}
 
-        ${isCreator ? `<button class="primary" onclick="startSubGame(${game.GID})">Start Game</button>`:""}
-        ${isCreator ? `<button class="danger" onclick="deleteGame(${game.GID})">Delete</button>`:""}
+        ${isCreator ? `<button class="primary" onclick="startSubGame(${game.GID})">Start Game</button>` : ""}
+        ${isCreator ? `<button class="danger" onclick="deleteGame(${game.GID})">Delete</button>` : ""}
+        ${isCreator ? `<button onclick="finishEvent(${game.GID})">Finish Event</button>` : ""}
+
+        <button onclick="openChat(${game.GID})">Open Chat</button>
         `;
 
-        container.appendChild(div);
-    }
-}
+                container.appendChild(div);
+            }
+        }
 
-/* TEAM SPLIT */
-function splitTeams(players){
-    const shuffled=[...players].sort(()=>0.5-Math.random());
-    const half=Math.floor(shuffled.length/2);
-    return { team1:shuffled.slice(0,half), team2:shuffled.slice(half)};
-}
+        /* CHAT */
+        function openChat(id) {
+            currentChatGame = id;
+            loadChat();
+        }
 
-/* START MATCH */
-async function startSubGame(id){
-    const res=await fetch(API+`/games/${id}/players`);
-    const players=await res.json();
+        async function loadChat() {
+            if (!currentChatGame) return;
 
-    const names=players.map(p=>p.Username);
+            const res = await fetch(API + `/games/${currentChatGame}/chat`);
+            const messages = await res.json();
 
-    const {team1,team2}=splitTeams(names);
+            document.getElementById("chatBox").innerHTML =
+                messages.map(m => `<div><b>${m.Username}:</b> ${m.Content}</div>`).join("");
+        }
 
-    currentMatch={eventId:id,team1,team2};
+        async function sendMessage() {
+            const input = document.getElementById("chatInput");
+            const content = input.value;
 
-    document.getElementById("team1").innerText="Team 1: "+team1.join(", ");
-    document.getElementById("team2").innerText="Team 2: "+team2.join(", ");
+            if (!content) return;
 
-    document.getElementById("matchModal").style.display="flex";
-}
+            await fetch(API + `/games/${currentChatGame}/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, content })
+            });
 
-/* SELECT WINNER + SCORE */
-async function selectWinner(teamNumber){
-    const score=document.getElementById("scoreInput").value;
+            input.value = "";
+            loadChat();
+        }
 
-    if(!score) return alert("Enter a score!");
+        /* RESET */
+        async function resetAll() {
+            await fetch(API + "/games/reset", { method: "DELETE" });
+            loadGames();
+            loadLeaderboard();
+            loadHistory();
+        }
 
-    const winnerTeam=teamNumber===1?currentMatch.team1:currentMatch.team2;
-    const winner=winnerTeam[0];
+        /* CREATE */
+        async function createGame() {
+            const location = document.getElementById("location").value;
+            const time = document.getElementById("time").value;
 
-    await fetch(API+`/games/${currentMatch.eventId}/result`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-            winner,
-            score,
-            players:[...currentMatch.team1,...currentMatch.team2]
-        })
-    });
+            const res = await fetch(API + "/games", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ location, time, username })
+            });
 
-    closeModal();
-    loadGames();
-    loadLeaderboard();
-    loadHistory();
-}
+            const data = await res.json();
 
-/* CLOSE */
-function closeModal(){
-    document.getElementById("matchModal").style.display="none";
-}
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
 
-/* LEADERBOARD */
-async function loadLeaderboard(){
-    const res=await fetch(API+"/games/leaderboard");
-    const data=await res.json();
+            loadGames();
+        }
 
-    document.getElementById("leaderboard").innerHTML=
-        data.map(p=>`<div class="leaderboard-card">${p.Username} - ${p.wins}</div>`).join("");
-}
+        async function joinGame(id) {
+            await fetch(API + `/games/${id}/join`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
+            loadGames();
+        }
 
-/* HISTORY */
-async function loadHistory(){
-    const res=await fetch(API+"/games/history");
-    const games=await res.json();
+        async function leaveGame(id) {
+            await fetch(API + `/games/${id}/leave`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
+            loadGames();
+        }
 
-    document.getElementById("history").innerHTML=
-        games.map(g=>`
+        async function deleteGame(id) {
+            await fetch(API + `/games/${id}/delete`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username })
+            });
+            loadGames();
+        }
+
+        async function finishEvent(id) {
+            await fetch(API + `/games/${id}/finish`, {
+                method: "POST"
+            });
+
+            loadGames();
+            loadLeaderboard();
+        }
+
+        async function recordResult() {
+            const gameId = document.getElementById("matchGameId").value;
+            const winner = document.getElementById("winnerInput").value.toLowerCase();
+            const players = document.getElementById("playersInput").value
+                .split(",")
+                .map(p => p.trim().toLowerCase());
+            const score = document.getElementById("scoreInput").value;
+
+            if (!gameId || !winner || players.length === 0 || !score) {
+                alert("Fill out all fields!");
+                return;
+            }
+
+            await fetch(API + `/games/${gameId}/result`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ winner, players, score })
+            });
+
+            alert("Match recorded!");
+
+            loadGames();
+            loadLeaderboard();
+            loadHistory();
+        }
+
+        /* LEADERBOARD */
+        async function loadLeaderboard() {
+            const res = await fetch(API + "/games");
+            const games = await res.json();
+
+            const completed = games.filter(g => g.Status === "completed");
+
+            if (completed.length === 0) {
+                document.getElementById("leaderboard").innerHTML =
+                    "<p>Leaderboard appears after events are completed.</p>";
+                return;
+            }
+
+            const lb = await fetch(API + "/games/leaderboard");
+            const data = await lb.json();
+
+            document.getElementById("leaderboard").innerHTML =
+                data.map(p => `<div class="leaderboard-card">${p.Username} - ${p.wins}</div>`).join("");
+        }
+
+        /* HISTORY */
+        async function loadHistory() {
+            const res = await fetch(API + "/games/history");
+            const games = await res.json();
+
+            document.getElementById("history").innerHTML =
+                games.map(g => `
         <div class="history-card">
             <b>${g.location}</b><br>
             ${g.players.join(", ")}<br>
             Winner: <span style="color:green">${g.winner}</span><br>
-            Score: ${g.score || "N/A"}
+Score: ${g.score || "N/A"}
         </div>
         `).join("");
-}
+        }
 
-/* CREATE */
-async function createGame(){
-    const location=document.getElementById("location").value;
-    const time=document.getElementById("time").value;
-
-    await fetch(API+"/games",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({location,time,username})
-    });
-
-    loadGames();
-}
-
-async function joinGame(id){
-    await fetch(API+`/games/${id}/join`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({username})
-    });
-    loadGames();
-}
-
-async function leaveGame(id){
-    await fetch(API+`/games/${id}/leave`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({username})
-    });
-    loadGames();
-}
-
-async function deleteGame(id){
-    await fetch(API+`/games/${id}/delete`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({username})
-    });
-    loadGames();
-}
-
-</script>
+    </script>
 
 </body>
+
 </html>

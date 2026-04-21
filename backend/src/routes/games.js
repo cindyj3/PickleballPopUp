@@ -29,6 +29,16 @@ router.post("/", (req, res) => {
   location = location.trim().toLowerCase();
   username = username?.trim().toLowerCase();
 
+  // CHECK DUPLICATE
+  const existing = db.prepare(`
+    SELECT * FROM Games
+    WHERE Location = ? AND GameTime = ?
+  `).get(location, time);
+
+  if (existing) {
+    return res.status(400).json({ error: "Event already exists!" });
+  }
+
   db.prepare(`
     INSERT INTO Games (Location, GameTime, Status, CreatedBy)
     VALUES (?, ?, 'scheduled', ?)
@@ -104,12 +114,12 @@ router.post("/:id/delete", (req, res) => {
   res.json({ success: true });
 });
 
-/* 🔥 RECORD SUB-GAME (MATCH) */
+/* RECORD SUB-GAME (MATCH) */
 router.post("/:id/result", (req, res) => {
   const { winner, score, players } = req.body;
   const gameId = req.params.id;
 
-  if (!winner || !players) {
+  if (!winner || !players || !score) {
     return res.json({ error: "Missing data" });
   }
 
@@ -119,9 +129,14 @@ router.post("/:id/result", (req, res) => {
 
     if (user) {
       db.prepare(`
-        INSERT INTO GamePlayers (GID, UID, IsWinner)
-        VALUES (?, ?, ?)
-      `).run(gameId, user.UID, name === winner ? 1 : 0);
+        INSERT INTO GamePlayers (GID, UID, Score, IsWinner)
+        VALUES (?, ?, ?, ?)
+      `).run(
+        gameId,
+        user.UID,
+        score,
+        name === winner ? 1 : 0
+      );
     }
   });
 
@@ -152,6 +167,7 @@ router.get("/history", (req, res) => {
       Games.Location,
       Games.GameTime,
       GamePlayers.IsWinner,
+      GamePlayers.Score,
       Users.Username
     FROM Games
     JOIN GamePlayers ON Games.GID = GamePlayers.GID
@@ -167,7 +183,8 @@ router.get("/history", (req, res) => {
         location: row.Location,
         time: row.GameTime,
         players: [],
-        winner: null
+        winner: null,
+        score: null
       };
     }
 
@@ -176,9 +193,86 @@ router.get("/history", (req, res) => {
     if (row.IsWinner === 1) {
       grouped[row.GID].winner = row.Username;
     }
+    if (row.Score) {
+      grouped[row.GID].score = row.Score;
+    }
+
   });
 
   res.json(Object.values(grouped));
+});
+
+
+router.delete("/reset", (req, res) => {
+  db.prepare("DELETE FROM GamePlayers").run();
+  db.prepare("DELETE FROM Games").run();
+  db.prepare("DELETE FROM Messages").run();
+  db.prepare("DELETE FROM Conversations").run();
+  db.prepare("DELETE FROM ConversationParticipants").run();
+
+  res.json({ message: "Reset complete" });
+});
+
+/* CREATE OR GET CONVERSATION FOR EVENT */
+router.get("/:id/chat", (req, res) => {
+  const gameId = req.params.id;
+
+  let convo = db.prepare(`
+    SELECT * FROM Conversations WHERE CID = ?
+  `).get(gameId);
+
+  if (!convo) {
+    db.prepare(`
+      INSERT INTO Conversations (CID) VALUES (?)
+    `).run(gameId);
+  }
+
+  const messages = db.prepare(`
+    SELECT Messages.Content, Messages.SentAt, Users.Username
+    FROM Messages
+    JOIN Users ON Messages.SenderUID = Users.UID
+    WHERE Messages.CID = ?
+    ORDER BY Messages.SentAt ASC
+  `).all(gameId);
+
+  res.json(messages);
+});
+
+/* SEND MESSAGE */
+router.post("/:id/chat", (req, res) => {
+  const { username, content } = req.body;
+  const gameId = req.params.id;
+
+  if (!content) return res.json({ error: "Empty message" });
+
+  let user = db.prepare("SELECT * FROM Users WHERE Username = ?")
+    .get(username.toLowerCase());
+
+  if (!user) {
+    db.prepare("INSERT INTO Users (Username) VALUES (?)")
+      .run(username.toLowerCase());
+    user = db.prepare("SELECT * FROM Users WHERE Username = ?")
+      .get(username.toLowerCase());
+  }
+
+  db.prepare(`
+    INSERT INTO Messages (CID, SenderUID, Content)
+    VALUES (?, ?, ?)
+  `).run(gameId, user.UID, content);
+
+  res.json({ success: true });
+});
+
+/* FINISH EVENT */
+router.post("/:id/finish", (req, res) => {
+  const gameId = req.params.id;
+
+  db.prepare(`
+    UPDATE Games SET Status = 'completed'
+    WHERE GID = ?
+  `).run(gameId);
+
+  res.json({ success: true });
 });
 
 module.exports = router;
