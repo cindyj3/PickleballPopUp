@@ -150,8 +150,8 @@ router.get("/:id/subgames", async (req, res) => {
       ORDER BY SubGames.CreatedAt ASC
     `, [req.params.id]);
 
-    const grouped: Record<number, any> = {};
-    rows.forEach((row: any) => {
+    const grouped = {};
+    rows.forEach((row) => {
       const key = row.sgid;
       if (!grouped[key]) {
         grouped[key] = {
@@ -168,7 +168,7 @@ router.get("/:id/subgames", async (req, res) => {
     });
 
     res.json(Object.values(grouped));
-  } catch (e: any) {
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
