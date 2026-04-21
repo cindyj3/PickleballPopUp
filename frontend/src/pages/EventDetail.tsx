@@ -4,33 +4,64 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../hooks/useApi';
 import type { Game, Player, ChatMessage } from '../types';
 
-interface RecordResultModalProps {
+interface SubGame {
+  sgid: number;
+  team1: string[];
+  team2: string[];
+  team1score: number;
+  team2score: number;
+  createdat: string;
+}
+
+interface NewGameModalProps {
   players: Player[];
   onClose: () => void;
   onRecorded: () => void;
   apiFetch: <T = unknown>(path: string, options?: RequestInit) => Promise<T>;
-  gameId: string;
+  eventId: string;
 }
 
-function RecordResultModal({ players, onClose, onRecorded, apiFetch, gameId }: RecordResultModalProps) {
-  const [winner, setWinner] = useState('');
-  const [score, setScore] = useState('');
+function NewGameModal({ players, onClose, onRecorded, apiFetch, eventId }: NewGameModalProps) {
+  const names = players.map(p => p.username ?? p.Username ?? '').filter(Boolean);
+  const [team1, setTeam1] = useState<string[]>([]);
+  const [team2, setTeam2] = useState<string[]>([]);
+  const [team1score, setTeam1score] = useState('');
+  const [team2score, setTeam2score] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [step, setStep] = useState<'teams' | 'scores'>('teams');
+
+  const togglePlayer = (name: string, team: 1 | 2) => {
+    if (team === 1) {
+      if (team1.includes(name)) setTeam1(team1.filter(p => p !== name));
+      else if (!team2.includes(name)) setTeam1([...team1, name]);
+    } else {
+      if (team2.includes(name)) setTeam2(team2.filter(p => p !== name));
+      else if (!team1.includes(name)) setTeam2([...team2, name]);
+    }
+  };
+
+  const handleRandomize = () => {
+    const shuffled = [...names].sort(() => Math.random() - 0.5);
+    const mid = Math.ceil(shuffled.length / 2);
+    setTeam1(shuffled.slice(0, mid));
+    setTeam2(shuffled.slice(mid));
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!winner) { setError('Select a winner'); return; }
+    if (team1.length === 0 || team2.length === 0) { setError('Both teams need players'); return; }
+    if (!team1score || !team2score) { setError('Enter scores for both teams'); return; }
     setLoading(true);
     try {
-      await apiFetch(`/api/games/${gameId}/result`, {
+      await apiFetch(`/api/games/${eventId}/subgame`, {
         method: 'POST',
-        body: JSON.stringify({ winner, score, players: players.map(p => p.username ?? p.Username) }),
+        body: JSON.stringify({ team1, team2, team1score: parseInt(team1score), team2score: parseInt(team2score) }),
       });
       onRecorded();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to record result');
+      setError(err instanceof Error ? err.message : 'Failed to record game');
     } finally {
       setLoading(false);
     }
@@ -38,29 +69,103 @@ function RecordResultModal({ players, onClose, onRecorded, apiFetch, gameId }: R
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-title">Record Match Result</div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Winner</label>
-            <select className="form-input" value={winner} onChange={e => setWinner(e.target.value)} required>
-              <option value="">-- Select winner --</option>
-              {players.map(p => {
-                const name = p.username ?? p.Username ?? '';
-                return <option key={name} value={name}>{name}</option>;
-              })}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Score (optional)</label>
-            <input className="form-input" value={score} onChange={e => setScore(e.target.value)} placeholder="e.g. 11-7" />
-          </div>
-          {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{error}</div>}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Record Result'}</button>
-          </div>
-        </form>
+      <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-title">Record New Game</div>
+
+        {step === 'teams' ? (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-700)' }}>Assign players to teams</span>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={handleRandomize}>🔀 Random</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                <div style={{ background: 'var(--green-light)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--green-dark)', marginBottom: 8 }}>TEAM A</div>
+                  {team1.map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: 13 }}>{p}</span>
+                      <button onClick={() => togglePlayer(p, 1)} style={{ fontSize: 14, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                    </div>
+                  ))}
+                  {team1.length === 0 && <div style={{ fontSize: 12, color: 'var(--gray-500)' }}>No players yet</div>}
+                </div>
+                <div style={{ background: 'var(--yellow-light)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--yellow-dark)', marginBottom: 8 }}>TEAM B</div>
+                  {team2.map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: 13 }}>{p}</span>
+                      <button onClick={() => togglePlayer(p, 2)} style={{ fontSize: 14, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                    </div>
+                  ))}
+                  {team2.length === 0 && <div style={{ fontSize: 12, color: 'var(--gray-500)' }}>No players yet</div>}
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 8 }}>Click a player to add to a team:</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {names.map(name => {
+                  const inT1 = team1.includes(name);
+                  const inT2 = team2.includes(name);
+                  return (
+                    <div key={name} style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={() => togglePlayer(name, 1)}
+                        style={{
+                          padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 12, cursor: 'pointer',
+                          background: inT1 ? 'var(--green)' : 'var(--gray-100)',
+                          color: inT1 ? 'white' : 'var(--gray-700)',
+                          border: '1px solid', borderColor: inT1 ? 'var(--green)' : 'var(--gray-300)',
+                        }}
+                      >A: {name}</button>
+                      <button
+                        onClick={() => togglePlayer(name, 2)}
+                        style={{
+                          padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 12, cursor: 'pointer',
+                          background: inT2 ? 'var(--yellow-dark)' : 'var(--gray-100)',
+                          color: inT2 ? 'white' : 'var(--gray-700)',
+                          border: '1px solid', borderColor: inT2 ? 'var(--yellow-dark)' : 'var(--gray-300)',
+                        }}
+                      >B: {name}</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={team1.length === 0 || team2.length === 0}
+                onClick={() => setStep('scores')}
+              >Next: Enter Scores →</button>
+            </div>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div>
+                <div style={{ background: 'var(--green-light)', borderRadius: 'var(--radius-md)', padding: '10px 12px', marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--green-dark)', marginBottom: 4 }}>TEAM A</div>
+                  <div style={{ fontSize: 13 }}>{team1.join(', ')}</div>
+                </div>
+                <input className="form-input" type="number" min={0} max={99} value={team1score} onChange={e => setTeam1score(e.target.value)} placeholder="Team A score" required />
+              </div>
+              <div>
+                <div style={{ background: 'var(--yellow-light)', borderRadius: 'var(--radius-md)', padding: '10px 12px', marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--yellow-dark)', marginBottom: 4 }}>TEAM B</div>
+                  <div style={{ fontSize: 13 }}>{team2.join(', ')}</div>
+                </div>
+                <input className="form-input" type="number" min={0} max={99} value={team2score} onChange={e => setTeam2score(e.target.value)} placeholder="Team B score" required />
+              </div>
+            </div>
+            {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setStep('teams')}>← Back</button>
+              <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Record Game'}</button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -73,6 +178,13 @@ function formatTime(t: string | undefined): string {
   } catch { return t; }
 }
 
+function formatShortTime(t: string | undefined): string {
+  if (!t) return '';
+  try {
+    return new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  } catch { return t; }
+}
+
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const { username, apiFetch } = useAuth();
@@ -81,23 +193,25 @@ export default function EventDetail() {
 
   const [event, setEvent] = useState<Game | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [subGames, setSubGames] = useState<SubGame[]>([]);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showRecord, setShowRecord] = useState(false);
+  const [showNewGame, setShowNewGame] = useState(false);
   const [chatMsg, setChatMsg] = useState('');
-  const [teams, setTeams] = useState<[Player[], Player[]] | null>(null);
 
   const load = async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const [eventsData, playersData, chatData] = await Promise.all([
+      const [eventsData, playersData, subGamesData, chatData] = await Promise.all([
         apiFetch<Game[]>('/api/games'),
         apiFetch<Player[]>(`/api/games/${id}/players`),
+        apiFetch<SubGame[]>(`/api/games/${id}/subgames`),
         apiFetch<ChatMessage[]>(`/api/games/${id}/chat`),
       ]);
       setEvent(eventsData.find(g => String(g.gid ?? g.GID) === String(id)) ?? null);
       setPlayers(playersData);
+      setSubGames(subGamesData);
       setChat(chatData);
     } catch (err) {
       show(err instanceof Error ? err.message : 'Load failed', 'error');
@@ -138,14 +252,6 @@ export default function EventDetail() {
     } catch (err) { show(err instanceof Error ? err.message : 'Error', 'error'); }
   };
 
-  const handleRandomize = () => {
-    if (players.length < 2) { show('Need at least 2 players', 'error'); return; }
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
-    const mid = Math.ceil(shuffled.length / 2);
-    setTeams([shuffled.slice(0, mid), shuffled.slice(mid)]);
-    show('Teams randomized!', 'success');
-  };
-
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-500)' }}>Loading...</div>;
 
   if (!event) return (
@@ -169,6 +275,7 @@ export default function EventDetail() {
         ← Back to Events
       </button>
 
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <div className="page-title">{location}</div>
@@ -182,90 +289,178 @@ export default function EventDetail() {
           {!isCompleted && isJoined && !isCreator && <button className="btn btn-danger btn-sm" onClick={handleLeave}>Leave</button>}
           {!isCompleted && isCreator && (
             <>
-              <button className="btn btn-secondary btn-sm" onClick={handleRandomize}>🔀 Teams</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowRecord(true)} disabled={players.length < 2}>📝 Record</button>
-              <button className="btn btn-primary btn-sm" onClick={handleFinish}>✓ Finish</button>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowNewGame(true)} disabled={players.length < 2}>+ Record Game</button>
+              <button className="btn btn-secondary btn-sm" onClick={handleFinish}>✓ Finish Event</button>
               <button className="btn btn-danger btn-sm" onClick={handleDelete}>🗑</button>
             </>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      {/* Stats bar */}
+      {subGames.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+          <div className="stat-card">
+            <div className="stat-label">Games Played</div>
+            <div className="stat-value">{subGames.length}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Players</div>
+            <div className="stat-value">{players.length}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Status</div>
+            <div className="stat-value" style={{ fontSize: 18, marginTop: 6 }}>{isCompleted ? '✅ Done' : '🟢 Live'}</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20, alignItems: 'start' }}>
+        {/* Sub-games list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Record game prompt */}
+          {!isCompleted && isCreator && players.length >= 2 && subGames.length === 0 && (
+            <div className="card" style={{ padding: '28px 24px', textAlign: 'center', borderStyle: 'dashed' }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🏓</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Ready to play!</div>
+              <div style={{ fontSize: 13, color: 'var(--gray-500)', marginBottom: 16 }}>{players.length} players have joined. Record your first game.</div>
+              <button className="btn btn-primary" onClick={() => setShowNewGame(true)}>+ Record First Game</button>
+            </div>
+          )}
+
+          {/* Games */}
+          {subGames.length > 0 && (
+            <div className="card" style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 20, fontWeight: 700 }}>
+                  Games ({subGames.length})
+                </div>
+                {!isCompleted && isCreator && (
+                  <button className="btn btn-primary btn-sm" onClick={() => setShowNewGame(true)}>+ New Game</button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {subGames.map((sg, idx) => {
+                  const t1wins = sg.team1score > sg.team2score;
+                  return (
+                    <div key={sg.sgid} style={{
+                      background: 'var(--gray-100)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '14px 16px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Game {idx + 1}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>· {formatShortTime(sg.createdat)}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 12, alignItems: 'center' }}>
+                        <div style={{
+                          background: t1wins ? 'var(--green-light)' : 'var(--white)',
+                          border: `2px solid ${t1wins ? 'var(--green)' : 'var(--gray-300)'}`,
+                          borderRadius: 'var(--radius-md)', padding: '10px 12px',
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: t1wins ? 'var(--green-dark)' : 'var(--gray-500)', marginBottom: 4 }}>
+                            TEAM A {t1wins ? '🏆' : ''}
+                          </div>
+                          <div style={{ fontSize: 13 }}>{sg.team1?.join(', ') || '—'}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 28, fontWeight: 700, letterSpacing: 2 }}>
+                            <span style={{ color: t1wins ? 'var(--green-dark)' : 'var(--gray-700)' }}>{sg.team1score}</span>
+                            <span style={{ color: 'var(--gray-300)', margin: '0 4px' }}>—</span>
+                            <span style={{ color: !t1wins ? 'var(--green-dark)' : 'var(--gray-700)' }}>{sg.team2score}</span>
+                          </div>
+                        </div>
+                        <div style={{
+                          background: !t1wins ? 'var(--green-light)' : 'var(--white)',
+                          border: `2px solid ${!t1wins ? 'var(--green)' : 'var(--gray-300)'}`,
+                          borderRadius: 'var(--radius-md)', padding: '10px 12px',
+                          textAlign: 'right',
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: !t1wins ? 'var(--green-dark)' : 'var(--gray-500)', marginBottom: 4 }}>
+                            {!t1wins ? '🏆 ' : ''}TEAM B
+                          </div>
+                          <div style={{ fontSize: 13 }}>{sg.team2?.join(', ') || '—'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Chat */}
+          <div className="card" style={{ padding: '20px 24px' }}>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 18, fontWeight: 700, marginBottom: 14 }}>Event Chat</div>
+            <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {chat.length === 0 && <div style={{ color: 'var(--gray-500)', fontSize: 13 }}>No messages yet</div>}
+              {chat.map((msg, i) => {
+                const msgName = msg.username ?? msg.Username ?? '';
+                const isMe = msgName === username;
+                return (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                    <div className="avatar" style={{ width: 26, height: 26, fontSize: 10, flexShrink: 0 }}>{msgName[0]?.toUpperCase()}</div>
+                    <div style={{ background: isMe ? 'var(--green-light)' : 'var(--gray-100)', borderRadius: 'var(--radius-md)', padding: '7px 11px', maxWidth: '70%' }}>
+                      {!isMe && <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--green-dark)', marginBottom: 2 }}>{msgName}</div>}
+                      <div style={{ fontSize: 13 }}>{msg.content ?? msg.Content}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <form onSubmit={handleSendChat} style={{ display: 'flex', gap: 8 }}>
+              <input className="form-input" value={chatMsg} onChange={e => setChatMsg(e.target.value)} placeholder="Say something..." style={{ flex: 1 }} />
+              <button type="submit" className="btn btn-primary btn-sm">Send</button>
+            </form>
+          </div>
+        </div>
+
+        {/* Players sidebar */}
         <div className="card" style={{ padding: '20px 22px' }}>
           <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 18, fontWeight: 700, marginBottom: 14 }}>
             Players <span style={{ color: 'var(--gray-500)', fontWeight: 400, fontSize: 14 }}>({players.length})</span>
           </div>
-          {players.length === 0 && <div style={{ color: 'var(--gray-500)', fontSize: 13 }}>No players yet — be the first!</div>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {players.length === 0 && <div style={{ color: 'var(--gray-500)', fontSize: 13 }}>No players yet</div>}
+
+          {/* Per-player stats within this event */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {players.map((p, idx) => {
               const name = p.username ?? p.Username ?? '';
+              const playerWins = subGames.filter(sg => sg.team1score > sg.team2score ? sg.team1.includes(name) : sg.team2.includes(name)).length;
+              const playerGames = subGames.filter(sg => sg.team1.includes(name) || sg.team2.includes(name)).length;
               return (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="avatar" style={{ width: 30, height: 30, fontSize: 11 }}>{name[0]?.toUpperCase()}</div>
-                  <span style={{ fontSize: 14 }}>{name}</span>
-                  {name === username && <span className="badge badge-green" style={{ fontSize: 10 }}>You</span>}
-                  {name === (event.createdby ?? event.CreatedBy) && <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>host</span>}
+                <div key={idx} style={{ padding: '10px 12px', background: 'var(--gray-100)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: playerGames > 0 ? 6 : 0 }}>
+                    <div className="avatar" style={{ width: 28, height: 28, fontSize: 11 }}>{name[0]?.toUpperCase()}</div>
+                    <span style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>{name}</span>
+                    {name === username && <span className="badge badge-green" style={{ fontSize: 10 }}>You</span>}
+                    {name === (event.createdby ?? event.CreatedBy) && <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>host</span>}
+                  </div>
+                  {playerGames > 0 && (
+                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--gray-500)', paddingLeft: 36 }}>
+                      <span style={{ color: 'var(--green-dark)', fontWeight: 600 }}>{playerWins}W</span>
+                      <span>{playerGames - playerWins}L</span>
+                      <span>{playerGames} games</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
-
-        {teams && (
-          <div className="card" style={{ padding: '20px 22px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 18, fontWeight: 700 }}>Teams</div>
-              <button className="btn btn-secondary btn-sm" onClick={handleRandomize}>Re-shuffle</button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {teams.map((team, i) => (
-                <div key={i} style={{ background: i === 0 ? 'var(--green-light)' : 'var(--yellow-light)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-                  <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 14, fontWeight: 700, color: i === 0 ? 'var(--green-dark)' : 'var(--yellow-dark)', marginBottom: 8 }}>
-                    TEAM {String.fromCharCode(65 + i)}
-                  </div>
-                  {team.map((p, j) => {
-                    const name = p.username ?? p.Username ?? '';
-                    return <div key={j} style={{ fontSize: 13, marginBottom: 4 }}>{name}</div>;
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      <div className="card" style={{ padding: '20px 22px', marginTop: 20 }}>
-        <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 18, fontWeight: 700, marginBottom: 14 }}>Event Chat</div>
-        <div style={{ maxHeight: 240, overflowY: 'auto', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {chat.length === 0 && <div style={{ color: 'var(--gray-500)', fontSize: 13 }}>No messages yet</div>}
-          {chat.map((msg, i) => {
-            const msgName = msg.username ?? msg.Username ?? '';
-            const isMe = msgName === username;
-            return (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                <div className="avatar" style={{ width: 26, height: 26, fontSize: 10, flexShrink: 0 }}>{msgName[0]?.toUpperCase()}</div>
-                <div style={{ background: isMe ? 'var(--green-light)' : 'var(--gray-100)', borderRadius: 'var(--radius-md)', padding: '7px 11px', maxWidth: '70%' }}>
-                  {!isMe && <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--green-dark)', marginBottom: 2 }}>{msgName}</div>}
-                  <div style={{ fontSize: 13 }}>{msg.content ?? msg.Content}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <form onSubmit={handleSendChat} style={{ display: 'flex', gap: 8 }}>
-          <input className="form-input" value={chatMsg} onChange={e => setChatMsg(e.target.value)} placeholder="Say something..." style={{ flex: 1 }} />
-          <button type="submit" className="btn btn-primary btn-sm">Send</button>
-        </form>
-      </div>
-
-      {showRecord && (
-        <RecordResultModal
+      {showNewGame && (
+        <NewGameModal
           players={players}
-          onClose={() => setShowRecord(false)}
-          onRecorded={() => { show('Result recorded!', 'success'); load(); }}
+          onClose={() => setShowNewGame(false)}
+          onRecorded={() => { show('Game recorded!', 'success'); load(); }}
           apiFetch={apiFetch}
-          gameId={id!}
+          eventId={id!}
         />
       )}
     </div>

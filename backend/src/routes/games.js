@@ -23,18 +23,16 @@ router.get("/users", async (req, res) => {
   }
 });
 
-/* LEADERBOARD - must be before /:id routes */
+/* LEADERBOARD */
 router.get("/leaderboard", async (req, res) => {
   try {
     const { rows } = await db.query(`
       SELECT 
         Users.Username,
-        COUNT(GamePlayers.GID) as "totalGames",
-        SUM(CASE WHEN GamePlayers.IsWinner = true THEN 1 ELSE 0 END) as wins
+        COUNT(DISTINCT sgp.sgid) as "totalGames",
+        SUM(CASE WHEN sgp.iswinner = true THEN 1 ELSE 0 END) as wins
       FROM Users
-      LEFT JOIN GamePlayers 
-        ON Users.UID = GamePlayers.UID 
-        AND GamePlayers.IsWinner IS NOT NULL
+      LEFT JOIN SubGamePlayers sgp ON Users.UID = sgp.uid
       GROUP BY Users.UID, Users.Username
       ORDER BY wins DESC
     `);
@@ -44,7 +42,7 @@ router.get("/leaderboard", async (req, res) => {
   }
 });
 
-/* HISTORY - must be before /:id routes */
+/* HISTORY */
 router.get("/history", async (req, res) => {
   try {
     const { rows } = await db.query(`
@@ -52,30 +50,36 @@ router.get("/history", async (req, res) => {
         Games.GID,
         Games.Location,
         Games.GameTime,
-        GamePlayers.IsWinner,
-        GamePlayers.Score,
+        SubGames.SGID,
+        SubGames.Team1Score,
+        SubGames.Team2Score,
+        SubGames.CreatedAt as SubGameTime,
+        sgp.IsWinner,
         Users.Username
       FROM Games
-      JOIN GamePlayers ON Games.GID = GamePlayers.GID
-      JOIN Users ON GamePlayers.UID = Users.UID
-      WHERE GamePlayers.IsWinner IS NOT NULL
-      ORDER BY Games.GameTime DESC
+      JOIN SubGames ON Games.GID = SubGames.GID
+      JOIN SubGamePlayers sgp ON SubGames.SGID = sgp.SGID
+      JOIN Users ON sgp.UID = Users.UID
+      ORDER BY SubGames.CreatedAt DESC
     `);
 
     const grouped = {};
     rows.forEach(row => {
-      if (!grouped[row.GID]) {
-        grouped[row.GID] = {
+      const key = row.sgid;
+      if (!grouped[key]) {
+        grouped[key] = {
+          sgid: row.sgid,
+          gid: row.GID,
           location: row.Location,
-          time: row.GameTime,
+          time: row.SubGameTime,
+          team1score: row.team1score,
+          team2score: row.team2score,
           players: [],
-          winner: null,
-          score: null,
+          winners: [],
         };
       }
-      if (row.IsWinner !== null) grouped[row.GID].players.push(row.Username);
-      if (row.IsWinner === true) grouped[row.GID].winner = row.Username;
-      if (row.Score) grouped[row.GID].score = row.Score;
+      grouped[key].players.push(row.Username);
+      if (row.iswinner) grouped[key].winners.push(row.Username);
     });
 
     res.json(Object.values(grouped));
@@ -113,12 +117,100 @@ router.post("/", async (req, res) => {
 router.get("/:id/players", async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT Users.Username, GamePlayers.IsWinner
+      SELECT Users.Username
       FROM GamePlayers
       JOIN Users ON GamePlayers.UID = Users.UID
       WHERE GamePlayers.GID = $1
     `, [req.params.id]);
     res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* GET SUB-GAMES FOR EVENT */
+router.get("/:id/subgames", async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT 
+        SubGames.SGID,
+        SubGames.Team1Score,
+        SubGames.Team2Score,
+        SubGames.CreatedAt,
+        sgp.IsWinner,
+        sgp.Team,
+        Users.Username
+      FROM SubGames
+      JOIN SubGamePlayers sgp ON SubGames.SGID = sgp.SGID
+      JOIN Users ON sgp.UID = Users.UID
+      WHERE SubGames.GID = $1
+      ORDER BY SubGames.CreatedAt ASC
+    `, [req.params.id]);
+
+    const grouped = {};
+    rows.forEach(row => {
+      const key = row.sgid;
+      if (!grouped[key]) {
+        grouped[key] = {
+          sgid: row.sgid,
+          team1score: row.team1score,
+          team2score: row.team2score,
+          createdat: row.createdat,
+          team1: [],
+          team2: [],
+        };
+      }
+      if (row.team === 1) grouped[key].team1.push(row.Username);
+      if (row.team === 2) grouped[key].team2.push(row.Username);
+    });
+
+    res.json(Object.values(grouped));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* RECORD SUB-GAME */
+router.post("/:id/subgame", async (req, res) => {
+  try {
+    const { team1, team2, team1score, team2score } = req.body;
+    const gameId = req.params.id;
+
+    if (!team1 || !team2 || team1score === undefined || team2score === undefined) {
+      return res.status(400).json({ error: "Missing data" });
+    }
+
+    // Create sub-game
+    const { rows: sgRows } = await db.query(
+      "INSERT INTO SubGames (GID, Team1Score, Team2Score) VALUES ($1, $2, $3) RETURNING SGID",
+      [gameId, team1score, team2score]
+    );
+    const sgid = sgRows[0].sgid;
+    const team1wins = parseInt(team1score) > parseInt(team2score);
+
+    // Record team 1 players
+    for (const name of team1) {
+      const { rows } = await db.query("SELECT * FROM Users WHERE Username = $1", [name.toLowerCase()]);
+      if (rows.length > 0) {
+        await db.query(
+          "INSERT INTO SubGamePlayers (SGID, UID, Team, IsWinner) VALUES ($1, $2, $3, $4)",
+          [sgid, rows[0].uid, 1, team1wins]
+        );
+      }
+    }
+
+    // Record team 2 players
+    for (const name of team2) {
+      const { rows } = await db.query("SELECT * FROM Users WHERE Username = $1", [name.toLowerCase()]);
+      if (rows.length > 0) {
+        await db.query(
+          "INSERT INTO SubGamePlayers (SGID, UID, Team, IsWinner) VALUES ($1, $2, $3, $4)",
+          [sgid, rows[0].uid, 2, !team1wins]
+        );
+      }
+    }
+
+    res.json({ success: true, sgid });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -178,32 +270,6 @@ router.post("/:id/delete", async (req, res) => {
   }
 });
 
-/* RECORD RESULT */
-router.post("/:id/result", async (req, res) => {
-  try {
-    const { winner, score, players } = req.body;
-    const gameId = req.params.id;
-
-    if (!winner || !players || !score) return res.status(400).json({ error: "Missing data" });
-
-    for (const name of players) {
-      const { rows } = await db.query("SELECT * FROM Users WHERE Username = $1", [name.toLowerCase()]);
-      if (rows.length > 0) {
-        const user = rows[0];
-        await db.query(
-          `INSERT INTO GamePlayers (GID, UID, Score, IsWinner)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (GID, UID) DO UPDATE SET Score = $3, IsWinner = $4`,
-          [gameId, user.uid, score, name === winner]
-        );
-      }
-    }
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
 /* FINISH EVENT */
 router.post("/:id/finish", async (req, res) => {
   try {
@@ -257,6 +323,8 @@ router.post("/:id/chat", async (req, res) => {
 /* RESET */
 router.delete("/reset", async (req, res) => {
   try {
+    await db.query("DELETE FROM SubGamePlayers");
+    await db.query("DELETE FROM SubGames");
     await db.query("DELETE FROM GamePlayers");
     await db.query("DELETE FROM Games");
     await db.query("DELETE FROM Messages");
