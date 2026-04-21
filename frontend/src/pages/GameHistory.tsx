@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
-import type { HistoryEntry } from '../types';
+
+interface HistoryGame {
+  sgid: number;
+  gid: number;
+  location: string;
+  time: string;
+  team1score: number;
+  team2score: number;
+  players: string[];
+  winners: string[];
+}
 
 function formatTime(t: string | undefined): string {
   if (!t) return '';
@@ -11,18 +21,18 @@ function formatTime(t: string | undefined): string {
 }
 
 export default function GameHistory() {
-  const { data: games, loading, error } = useApi<HistoryEntry[]>('/api/games/history');
+  const { data: games, loading, error } = useApi<HistoryGame[]>('/api/games/history');
   const { username } = useAuth();
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
 
   const filtered = (games ?? []).filter(g =>
-    filter === 'mine' ? g.players?.includes(username ?? '') : true
+    filter === 'mine' ? g.players?.filter(Boolean).includes(username ?? '') : true
   );
 
   const myRecord = (games ?? []).reduce(
     (acc, g) => {
-      if (!g.players?.includes(username ?? '')) return acc;
-      return g.winner === username
+      if (!g.players?.filter(Boolean).includes(username ?? '')) return acc;
+      return g.winners?.includes(username ?? '')
         ? { ...acc, wins: acc.wins + 1 }
         : { ...acc, losses: acc.losses + 1 };
     },
@@ -66,50 +76,52 @@ export default function GameHistory() {
         <div className="empty-state">
           <div className="empty-icon">📋</div>
           <div className="empty-title">No results recorded yet</div>
-          <div>Record match results from an event page</div>
+          <div>Complete an event with recorded games to see history here</div>
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {filtered.map((game, idx) => {
+        {filtered.map((game) => {
           const iPlayed = game.players?.filter(Boolean).includes(username ?? '');
           const iWon = game.winners?.includes(username ?? '');
-          const gameTime = game.time ?? game.GameTime;
-          const gameLocation = game.location ?? game.Location ?? '';
+          const t1wins = game.team1score > game.team2score;
           return (
-            <div key={idx} className="card fade-in" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-              {iPlayed && (
-                <div style={{
-                  width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0,
-                  background: iWon ? 'var(--green-light)' : 'var(--danger-light)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: 12,
-                  color: iWon ? 'var(--green-dark)' : 'var(--danger)',
-                }}>
-                  {iWon ? 'WIN' : 'LOSS'}
+            <div key={game.sgid} className="card fade-in" style={{ padding: '16px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                {iPlayed && (
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0,
+                    background: iWon ? 'var(--green-light)' : 'var(--danger-light)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: 12,
+                    color: iWon ? 'var(--green-dark)' : 'var(--danger)',
+                  }}>
+                    {iWon ? 'WIN' : 'LOSS'}
+                  </div>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{game.location}</div>
+                  <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
+                    {formatTime(game.time)} · {game.players?.filter(Boolean).join(', ')}
+                  </div>
                 </div>
-              )}
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 15 }}>{gameLocation}</div>
-                <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
-  {formatTime(gameTime)} · {game.players?.filter(Boolean).join(', ')}
-</div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 22, fontWeight: 700 }}>
+                    <span style={{ color: t1wins ? 'var(--green-dark)' : 'var(--gray-700)' }}>{game.team1score}</span>
+                    <span style={{ color: 'var(--gray-300)', margin: '0 4px' }}>—</span>
+                    <span style={{ color: !t1wins ? 'var(--green-dark)' : 'var(--gray-700)' }}>{game.team2score}</span>
+                  </div>
+                  {game.winners?.length > 0 && (
+                    <div style={{ fontSize: 12, color: 'var(--green-dark)', fontWeight: 600 }}>
+                      🏆 {game.winners.join(' & ')}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                {(game.team1score !== undefined) && (
-  <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 22, fontWeight: 700 }}>
-    {game.team1score} — {game.team2score}
-  </div>
-)}
-{game.winners?.length > 0 && (
-  <div style={{ fontSize: 12, color: 'var(--green-dark)', fontWeight: 600 }}>🏆 {game.winners.join(' & ')}</div>
-)}
               </div>
             </div>
-      );
+          );
         })}
+      </div>
     </div>
-    </div >
   );
 }
