@@ -25,7 +25,7 @@ export default function Layout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div>
 
-              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 17, fontWeight: 700, color: 'var(--white)', letterSpacing: 0.5 }}>BARN BOYS</div>
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 17, fontWeight: 700, color: 'var(--white)', letterSpacing: 0.5 }}>PICKLEBALL POP-UP</div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 }}>BARN BOYS SCOREBOOK</div>
             </div>
           </div>
