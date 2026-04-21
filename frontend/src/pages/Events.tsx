@@ -52,12 +52,11 @@ function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreat
   );
 }
 
-function formatTime(t: string): string {
+function formatTime(t: string | undefined): string {
+  if (!t) return '';
   try {
     return new Date(t).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  } catch {
-    return t;
-  }
+  } catch { return t; }
 }
 
 export default function Events() {
@@ -103,8 +102,8 @@ export default function Events() {
               onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-md)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ''; (e.currentTarget as HTMLDivElement).style.boxShadow = ''; }}
             >
-              <div style={{ width: 44, height: 44, background: event.Status === 'completed' ? 'var(--gray-100)' : 'var(--green-light)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                {event.Status === 'completed' ? '✅' : '🏓'}
+              <div style={{ width: 44, height: 44, background: (event.status ?? event.Status) === 'completed' ? 'var(--gray-100)' : 'var(--green-light)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                {(event.status ?? event.Status) === 'completed' ? '✅' : '🏓'}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 19, fontWeight: 700 }}>{event.location ?? event.Location ?? 'TBD'}</div>

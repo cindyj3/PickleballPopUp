@@ -3,12 +3,11 @@ import { useApi } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import type { HistoryEntry } from '../types';
 
-function formatTime(t: string): string {
+function formatTime(t: string | undefined): string {
+  if (!t) return '';
   try {
     return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  } catch {
-    return t;
-  }
+  } catch { return t; }
 }
 
 export default function GameHistory() {
@@ -75,6 +74,8 @@ export default function GameHistory() {
         {filtered.map((game, idx) => {
           const iWon = game.winner === username;
           const iPlayed = game.players?.includes(username ?? '');
+          const gameTime = game.time ?? game.GameTime;
+          const gameLocation = game.location ?? game.Location ?? '';
           return (
             <div key={idx} className="card fade-in" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
               {iPlayed && (
@@ -89,9 +90,9 @@ export default function GameHistory() {
                 </div>
               )}
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 15 }}>{game.location}</div>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>{gameLocation}</div>
                 <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
-                  {formatTime(game.time)} · {game.players?.join(', ')}
+                  {formatTime(gameTime)} · {game.players?.join(', ')}
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>

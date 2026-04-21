@@ -7,19 +7,29 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 interface RichEntry extends LeaderboardEntry {
   losses: number;
   winPct: number;
+  displayName: string;
+  totalG: number;
+  totalW: number;
 }
 
 export default function Leaderboard() {
   const { data: raw, loading, error } = useApi<LeaderboardEntry[]>('/api/games/leaderboard');
   const { username } = useAuth();
 
-  const players: RichEntry[] = (raw ?? []).map(p => ({
-    ...p,
-    losses: (p.totalGames ?? 0) - (p.wins ?? 0),
-    winPct: p.totalGames > 0 ? Math.round((p.wins / p.totalGames) * 100) : 0,
-  }));
+  const players: RichEntry[] = (raw ?? []).map(p => {
+    const totalG = p.totalGames ?? p.totalgames ?? 0;
+    const totalW = p.wins ?? 0;
+    return {
+      ...p,
+      displayName: p.username ?? p.Username ?? '',
+      totalG,
+      totalW,
+      losses: totalG - totalW,
+      winPct: totalG > 0 ? Math.round((totalW / totalG) * 100) : 0,
+    };
+  });
 
-  const me = players.find(p => p.Username === username);
+  const me = players.find(p => p.displayName === username);
   const myRank = me ? players.indexOf(me) + 1 : null;
 
   return (
@@ -34,8 +44,8 @@ export default function Leaderboard() {
           {[
             { label: 'Your Rank', value: `#${myRank}` },
             { label: 'Win %', value: `${me.winPct}%`, green: true },
-            { label: 'Wins', value: String(me.wins ?? 0) },
-            { label: 'Losses', value: String(me.losses ?? 0) },
+            { label: 'Wins', value: String(me.totalW) },
+            { label: 'Losses', value: String(me.losses) },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <div className="stat-label">{s.label}</div>
@@ -68,9 +78,9 @@ export default function Leaderboard() {
 
           {players.map((p, idx) => {
             const rank = idx + 1;
-            const isMe = p.Username === username;
+            const isMe = p.displayName === username;
             return (
-              <div key={p.Username} style={{
+              <div key={p.displayName} style={{
                 display: 'grid', gridTemplateColumns: '44px 1fr 56px 56px 56px 90px', gap: 8,
                 padding: '13px 20px', alignItems: 'center',
                 borderTop: idx > 0 ? '1px solid #edf0f4' : 'none',
@@ -80,15 +90,15 @@ export default function Leaderboard() {
                   {rank <= 3 ? MEDALS[rank - 1] : rank}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div className="avatar" style={{ width: 30, height: 30, fontSize: 11 }}>{p.Username?.[0]?.toUpperCase()}</div>
+                  <div className="avatar" style={{ width: 30, height: 30, fontSize: 11 }}>{p.displayName[0]?.toUpperCase()}</div>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>
-                    {p.Username}
+                    {p.displayName}
                     {isMe && <span className="badge badge-green" style={{ marginLeft: 6, fontSize: 10 }}>You</span>}
                   </span>
                 </div>
-                <div style={{ textAlign: 'center', fontWeight: 700, color: 'var(--green-dark)' }}>{p.wins ?? 0}</div>
+                <div style={{ textAlign: 'center', fontWeight: 700, color: 'var(--green-dark)' }}>{p.totalW}</div>
                 <div style={{ textAlign: 'center', color: 'var(--gray-500)' }}>{p.losses}</div>
-                <div style={{ textAlign: 'center', color: 'var(--gray-500)', fontSize: 13 }}>{p.totalGames ?? 0}</div>
+                <div style={{ textAlign: 'center', color: 'var(--gray-500)', fontSize: 13 }}>{p.totalG}</div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: p.winPct >= 60 ? 'var(--green-dark)' : p.winPct >= 40 ? 'var(--charcoal)' : 'var(--danger)' }}>
                     {p.winPct}%
