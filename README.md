@@ -188,7 +188,9 @@ In your frontend static site on Render, go to **Redirects/Rewrites** and add:
 
 ---
 
-## Note
-- The backend free tier on Render spins down after 15 minutes of inactivity, causing a ~1 minute delay on first request
-- PostgreSQL free tier databases expire after 90 days — recreate and update `DATABASE_URL` when needed
+## Known Limitations & Security Notes
+- The `/api/games/reset` endpoint is unprotected — anyone with the URL can wipe all data. For production use, this should be secured with an admin password.
+- Username login has no password — anyone can log in as any username. Suitable for small trusted groups only.
+- PostgreSQL free tier expires every 90 days and must be manually recreated.
+- Backend free tier on Render spins down after 15 minutes of inactivity, causing a ~1 minute delay on first request.
 - The `.env` and `.env.local` files are gitignored and must be set up manually on each machine
