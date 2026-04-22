@@ -34,19 +34,19 @@ function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreat
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-title">Create New Event</div>
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Location</label>
-            <input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. The Barn, Court A" required />
-          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
-              <label className="form-label">Date</label>
-              <input className="form-input" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+              <label className="form-label">Location</label>
+              <input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. The Barn" required />
             </div>
             <div className="form-group">
               <label className="form-label">Time</label>
               <input className="form-input" type="time" value={time} onChange={e => setTime(e.target.value)} required />
             </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Date</label>
+            <input className="form-input" type="date" value={date} onChange={e => setDate(e.target.value)} required />
           </div>
           {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{error}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
