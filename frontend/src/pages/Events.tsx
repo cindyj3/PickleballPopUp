@@ -70,8 +70,8 @@ function EventCard({ event }: { event: Game }) {
         onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-md)'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ''; (e.currentTarget as HTMLDivElement).style.boxShadow = ''; }}
       >
-        <div style={{ width: 44, height: 44, background: isCompleted ? 'var(--gray-100)' : 'var(--green-light)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-          {isCompleted ? '✅' : '🏓'}
+        <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', overflow: 'hidden', flexShrink: 0, background: isCompleted ? 'var(--gray-100)' : 'var(--green-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {isCompleted ? <span style={{ fontSize: 20 }}>✅</span> : <img src="/pickleball.png" style={{ width: 32, height: 32, objectFit: 'contain' }} />}
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 19, fontWeight: 700 }}>{event.location ?? event.Location ?? 'TBD'}</div>
