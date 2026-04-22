@@ -1,12 +1,10 @@
 # PickleballPopUp
-
 **COMP 4710 Senior Design Project**  
 **Professor:** Dr. Jakita Thomas
 
 ---
 
 ## Members
-
 - Cindy Jiang  
 - Reid Roberts  
 - Reed Parish  
@@ -15,39 +13,40 @@
 ---
 
 ## Project Description
+PickleballPopUp is a web application designed to help users easily organize and join pickleball events. The platform allows players to create events, view available events, join events created by others, record sub-game results within each event, and track win/loss statistics on a leaderboard.
 
-PickleballPopUp is a web application designed to help users easily organize and join pickleball games. The platform allows players to create pickup games, view available games, and join games created by others.
-
-The goal of this project is to provide a simple coordination tool for scheduling recreational pickleball matches for our sponsor's pickleball group. 
+The goal of this project is to provide a simple coordination tool for our sponsor's recreational pickleball group.
 
 ---
 
 ## Features
-
-- Create new pickleball games  
-- View available scheduled games  
-- Join existing games  
-- Real-time updates of the game list  
-- Simple and intuitive user interface  
+- Create and manage pickleball **events**
+- Join or leave existing events by username
+- Record multiple **sub-games** per event (teams, scores, wins/losses)
+- Randomize teams from the pool of joined players
+- **Leaderboard** showing player win/loss records (only updates after events are completed)
+- **Game History** showing all recorded sub-games from completed events
+- **Event Chat** — players can message each other within an event
+- Simple username-based login (no password required)
 
 ---
 
 ## Technologies Used
 
 **Frontend**
-- HTML
-- CSS
-- JavaScript
+- React (TypeScript)
+- React Router
+- Vite (build tool)
 
 **Backend**
 - Node.js
 - Express.js
 
 **Database**
-- SQLite
+- PostgreSQL (hosted on Render)
 
 **Deployment**
-- Render (Backend API)
+- Render Web Service (Backend API)
 - Render Static Site (Frontend)
 
 ---
@@ -62,83 +61,134 @@ https://pickleballpopup.onrender.com/api/games
 
 ---
 
-## Setup (Local Development)
+## Local Development Setup
 
-### Clone the repository
+### 1. Clone the repository
+```bash
 git clone https://github.com/cindyj3/PickleballPopUp.git
-
 cd PickleballPopUp
+```
 
-### Install dependencies
+### 2. Backend setup
+```bash
+cd backend
 npm install
+```
 
-### Start the backend server
+Create a `.env` file inside the `backend/` folder:
+```
+DATABASE_URL=postgresql://pickleball_db_fxr6_user:dskcg8enJH7lxoxA3e8JzSsh5Ae5ceiU@dpg-d7jfs21kh4rs73fm3rf0-a.oregon-postgres.render.com/pickleball_db_fxr6
+```
+
+Start the backend server:
+```bash
 node server.js
+```
 
-The API will run locally at:
-http://localhost:3000/api/games
+The API will run at: `http://localhost:3001`
 
+### 3. Frontend setup
+Open a second terminal:
+```bash
+cd frontend
+npm install
+```
 
-### Open the frontend
+Create a `.env.local` file inside the `frontend/` folder:
+```
+VITE_API_URL=http://localhost:3001
+```
 
-Open `index.html` in your browser.
+Start the frontend:
+```bash
+npm run dev
+```
+
+The app will run at: `http://localhost:5173`
+
+---
+
+## Render Deployment
+
+### Database
+1. Create a new **PostgreSQL** database on Render (free tier)
+2. Copy the **Internal Database URL** for use in the backend service
+3. Note: free Postgres databases expire after 90 days and must be recreated
+
+### Backend (Web Service)
+- **Root Directory:** `backend`
+- **Build Command:** `npm install`
+- **Start Command:** `node server.js`
+- **Environment Variables:**
+  - `DATABASE_URL` = Internal Postgres URL from Render 
+  - `NODE_ENV` = `production`
+  - `FRONTEND_URL` = `https://pickleballpopup-frontend.onrender.com`
+
+### Frontend (Static Site)
+- **Root Directory:** `frontend`
+- **Build Command:** `npm install && npm run build`
+- **Publish Directory:** `dist`
+- **Environment Variables:**
+  - `VITE_API_URL` = `https://pickleballpopup.onrender.com`
+
+### Rewrite Rule (fixes page refresh on frontend)
+In your frontend static site on Render, go to **Redirects/Rewrites** and add:
+- **Source:** `/*`
+- **Destination:** `/index.html`
+- **Action:** Rewrite
 
 ---
 
 ## API Endpoints
 
-### Get All Games
-GET /api/games
+### Events
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/games` | Get all events |
+| POST | `/api/games` | Create a new event |
+| POST | `/api/games/:id/join` | Join an event |
+| POST | `/api/games/:id/leave` | Leave an event |
+| POST | `/api/games/:id/finish` | Mark event as completed |
+| POST | `/api/games/:id/delete` | Delete an event (host only) |
+| GET | `/api/games/:id/players` | Get players for an event |
 
+### Sub-Games
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/games/:id/subgames` | Get all sub-games for an event |
+| POST | `/api/games/:id/subgame` | Record a new sub-game result |
 
-Example response:
-[
-{
-"GID": 1,
-"GameTime": "2 pm",
-"Location": "RO courts",
-"Status": "scheduled"
-}
-]
+### Stats
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/games/leaderboard` | Get player leaderboard |
+| GET | `/api/games/history` | Get completed game history |
 
+### Chat
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/games/:id/chat` | Get chat messages for an event |
+| POST | `/api/games/:id/chat` | Send a chat message |
 
----
-
-### Create Game
-POST /api/games
-
-
-Example body:
-{
-"location": "RO courts",
-"time": "2 pm",
-"username": "Cindy"
-}
-
-
-Creates a new pickleball game.
-
----
-
-### Join Game
-POST /api/games/:id/join
-
-
-Example body:
-{
-"username": "Alex"
-}
-
-Adds a player to an existing game.
+### Users
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/users` | Create or get a user by username |
 
 ---
 
-## Future Improvements
+## Database Schema
 
-- User account authentication  
-- Player capacity limits per game  
-- Game result tracking  
-- Score recording functionality  
-- Notifications for upcoming games  
-- Mobile responsive UI  
+- **Users** — player accounts (username-based)
+- **Games** — events (location, time, status, host)
+- **GamePlayers** — players joined to an event
+- **SubGames** — individual games played within an event (scores)
+- **SubGamePlayers** — players in each sub-game with win/loss
+- **Conversations / Messages** — event chat
 
+---
+
+## Note
+- The backend free tier on Render spins down after 15 minutes of inactivity, causing a ~1 minute delay on first request
+- PostgreSQL free tier databases expire after 90 days — recreate and update `DATABASE_URL` when needed
+- The `.env` and `.env.local` files are gitignored and must be set up manually on each machine
