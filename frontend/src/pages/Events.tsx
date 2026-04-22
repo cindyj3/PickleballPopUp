@@ -7,6 +7,7 @@ import type { Game } from '../types';
 function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { apiFetch, username } = useAuth();
   const [location, setLocation] = useState('');
+  const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,7 +18,7 @@ function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreat
     try {
       await apiFetch('/api/games', {
         method: 'POST',
-        body: JSON.stringify({ location, time, username }),
+        body: JSON.stringify({ location, time: `${date}T${time}`, username }),
       });
       onCreated();
       onClose();
@@ -34,12 +35,18 @@ function CreateEventModal({ onClose, onCreated }: { onClose: () => void; onCreat
         <div className="modal-title">Create New Event</div>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Location / Court</label>
-            <input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Court A, Riverside Park" required />
+            <label className="form-label">Location</label>
+            <input className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. The Barn, Court A" required />
           </div>
-          <div className="form-group">
-            <label className="form-label">Date & Time</label>
-            <input className="form-input" type="datetime-local" value={time} onChange={e => setTime(e.target.value)} required />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-group">
+              <label className="form-label">Date</label>
+              <input className="form-input" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Time</label>
+              <input className="form-input" type="time" value={time} onChange={e => setTime(e.target.value)} required />
+            </div>
           </div>
           {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{error}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -59,10 +66,38 @@ function formatTime(t: string | undefined): string {
   } catch { return t; }
 }
 
+function EventCard({ event }: { event: Game }) {
+  const status = event.status ?? event.Status ?? 'scheduled';
+  const isCompleted = status === 'completed';
+  return (
+    <Link key={event.gid ?? event.GID} to={`/events/${event.gid ?? event.GID}`} style={{ textDecoration: 'none' }}>
+      <div
+        className="card fade-in"
+        style={{ padding: '18px 22px', cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', display: 'flex', alignItems: 'center', gap: 16 }}
+        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-md)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ''; (e.currentTarget as HTMLDivElement).style.boxShadow = ''; }}
+      >
+        <div style={{ width: 44, height: 44, background: isCompleted ? 'var(--gray-100)' : 'var(--green-light)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+          {isCompleted ? '✅' : '🏓'}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 19, fontWeight: 700 }}>{event.location ?? event.Location ?? 'TBD'}</div>
+          <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 2 }}>🕐 {formatTime(event.gametime ?? event.GameTime)}</div>
+        </div>
+        <span className={`badge ${isCompleted ? 'badge-gray' : 'badge-green'}`}>{status}</span>
+        <span style={{ color: 'var(--gray-300)', fontSize: 18 }}>›</span>
+      </div>
+    </Link>
+  );
+}
+
 export default function Events() {
   const { data: events, loading, error, refetch } = useApi<Game[]>('/api/games');
   const [showCreate, setShowCreate] = useState(false);
   const { show, Notification } = useNotification();
+
+  const upcoming = (events ?? []).filter(e => (e.status ?? e.Status) !== 'completed');
+  const completed = (events ?? []).filter(e => (e.status ?? e.Status) === 'completed');
 
   return (
     <div>
@@ -84,7 +119,7 @@ export default function Events() {
         </div>
       )}
 
-      {!loading && !error && (events ?? []).length === 0 && (
+      {!loading && !error && upcoming.length === 0 && completed.length === 0 && (
         <div className="empty-state">
           <div className="empty-icon">📅</div>
           <div className="empty-title">No events yet</div>
@@ -93,28 +128,29 @@ export default function Events() {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {(events ?? []).map(event => (
-          <Link key={event.gid ?? event.GID} to={`/events/${event.gid ?? event.GID}`} style={{ textDecoration: 'none' }}>
-            <div
-              className="card fade-in"
-              style={{ padding: '18px 22px', cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s', display: 'flex', alignItems: 'center', gap: 16 }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-md)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ''; (e.currentTarget as HTMLDivElement).style.boxShadow = ''; }}
-            >
-              <div style={{ width: 44, height: 44, background: (event.status ?? event.Status) === 'completed' ? 'var(--gray-100)' : 'var(--green-light)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                {(event.status ?? event.Status) === 'completed' ? '✅' : '🏓'}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: 19, fontWeight: 700 }}>{event.location ?? event.Location ?? 'TBD'}</div>
-                <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 2 }}>🕐 {formatTime(event.gametime ?? event.GameTime)}</div>
-              </div>
-              <span className={`badge ${(event.status ?? event.Status) === 'completed' ? 'badge-gray' : 'badge-green'}`}>{event.status ?? event.Status ?? 'scheduled'}</span>
-              <span style={{ color: 'var(--gray-300)', fontSize: 18 }}>›</span>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {/* Upcoming events */}
+      {upcoming.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+            Upcoming ({upcoming.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {upcoming.map(event => <EventCard key={event.gid ?? event.GID} event={event} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Completed events */}
+      {completed.length > 0 && (
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+            Completed ({completed.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {completed.map(event => <EventCard key={event.gid ?? event.GID} event={event} />)}
+          </div>
+        </div>
+      )}
 
       {showCreate && (
         <CreateEventModal

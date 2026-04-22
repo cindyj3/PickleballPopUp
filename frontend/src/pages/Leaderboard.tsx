@@ -12,6 +12,21 @@ interface RichEntry extends LeaderboardEntry {
   totalW: number;
 }
 
+function exportCSV(players: RichEntry[]) {
+  const header = 'Rank,Player,Wins,Losses,Games,Win%';
+  const rows = players.map((p, i) =>
+    `${i + 1},${p.displayName},${p.totalW},${p.losses},${p.totalG},${p.winPct}%`
+  );
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'leaderboard.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Leaderboard() {
   const { data: raw, loading, error } = useApi<LeaderboardEntry[]>('/api/games/leaderboard');
   const { username } = useAuth();
@@ -27,16 +42,23 @@ export default function Leaderboard() {
       losses: totalG - totalW,
       winPct: totalG > 0 ? Math.round((totalW / totalG) * 100) : 0,
     };
-  });
+  }).sort((a, b) => b.winPct - a.winPct || b.totalW - a.totalW);
 
   const me = players.find(p => p.displayName === username);
   const myRank = me ? players.indexOf(me) + 1 : null;
 
   return (
     <div className="fade-in">
-      <div style={{ marginBottom: 28 }}>
-        <div className="page-title">Leaderboard</div>
-        <div className="page-subtitle">Ranked by win percentage</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+        <div>
+          <div className="page-title">Leaderboard</div>
+          <div className="page-subtitle">Ranked by win percentage</div>
+        </div>
+        {players.length > 0 && (
+          <button className="btn btn-secondary btn-sm" onClick={() => exportCSV(players)}>
+            ⬇ Export CSV
+          </button>
+        )}
       </div>
 
       {me && myRank && (
@@ -62,7 +84,7 @@ export default function Leaderboard() {
         <div className="empty-state">
           <div className="empty-icon">🏆</div>
           <div className="empty-title">No stats yet</div>
-          <div>Play some games to appear here!</div>
+          <div>Complete an event with recorded games to see rankings!</div>
         </div>
       )}
 
